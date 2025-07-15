@@ -248,9 +248,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Load all action buttons for all configured clients at startup
-        // for (int clientId : configuredClientIds) {
-        //     loadActionButtonsState(clientId);
-        // }
+        for (int clientId : configuredClientIds) {
+            loadActionButtonsState(clientId);
+        }
 
         if (savedInstanceState == null) {
             if (configuredClientIds.isEmpty()) {
@@ -820,7 +820,7 @@ public class MainActivity extends AppCompatActivity {
                 ActionButtonData selectedButtonData = null;
                 View selectedFabView = null;
                 for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                    if (entry.getValue().keyText.equals(selectedKeyText)) {
+                    if (entry.getValue().keyText.equals(selectedKeyText) && entry.getValue().clientId == clientId) {
                         selectedButtonData = entry.getValue();
                         selectedFabView = entry.getKey();
                         break;
@@ -871,17 +871,30 @@ public class MainActivity extends AppCompatActivity {
         builder.setItems(buttonLabels, (dialog, whichButton) -> {
             String selectedKeyText = buttonLabels[whichButton].toString();
             
+            // Find the ActionButtonData object and its corresponding View
             ActionButtonData dataToRemove = null;
-            if (clientButtons != null) {
-                for (ActionButtonData data : clientButtons) {
-                    if (data.keyText.equals(selectedKeyText)) {
-                        dataToRemove = data;
-                        break;
-                    }
+            for (ActionButtonData data : clientButtons) {
+                if (data.keyText.equals(selectedKeyText)) {
+                    dataToRemove = data;
+                    break;
                 }
             }
 
             if (dataToRemove != null) {
+                // Find the view associated with the data to remove it from the layout
+                View fabViewToRemove = null;
+                for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
+                    if (entry.getValue().equals(dataToRemove)) {
+                        fabViewToRemove = entry.getKey();
+                        break;
+                    }
+                }
+
+                if (fabViewToRemove != null) {
+                    rootContainer.removeView(fabViewToRemove);
+                    fabViewToActionDataMap.remove(fabViewToRemove);
+                }
+
                 clientButtons.remove(dataToRemove);
                 saveActionButtonsState(clientId);
                 refreshAllActionButtonsDisplay();
@@ -1473,8 +1486,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override protected void onPause() {
         super.onPause();
-        if (activeClientId != -1) {
-            saveActionButtonsState(activeClientId);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        for (int clientId : configuredClientIds) {
+            if (clientActionButtonsData.containsKey(clientId)) {
+                saveActionButtonsState(clientId);
+            }
         }
     }
 
