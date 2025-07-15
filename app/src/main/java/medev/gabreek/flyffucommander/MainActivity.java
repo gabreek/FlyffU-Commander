@@ -224,14 +224,10 @@ public class MainActivity extends AppCompatActivity {
             refreshAllActionButtonsDisplay();
         });
 
-        float fabHideShowX = appTinyDB.getFloat("fabHideShow_x", -9999f);
-        float fabHideShowY = appTinyDB.getFloat("fabHideShow_y", -9999f);
-        if (fabHideShowX != -9999f) {
-            fabHideShow.setX(fabHideShowX);
-        }
-        if (fabHideShowY != -9999f) {
-            fabHideShow.setY(fabHideShowY);
-        }
+        float fabHideShowX = appTinyDB.getFloat("fabHideShow_x");
+        float fabHideShowY = appTinyDB.getFloat("fabHideShow_y");
+        fabHideShow.setX(fabHideShowX);
+        fabHideShow.setY(fabHideShowY);
 
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
@@ -1243,6 +1239,7 @@ public class MainActivity extends AppCompatActivity {
                     if (dx < slop && dy < slop && eventDuration < ViewConfiguration.getLongPressTimeout()) {
                         v.performClick();
                     } else {
+                        snapFabToEdge(v);
                         appTinyDB.putFloat("fabHideShow_x", v.getX());
                         appTinyDB.putFloat("fabHideShow_y", v.getY());
                     }
