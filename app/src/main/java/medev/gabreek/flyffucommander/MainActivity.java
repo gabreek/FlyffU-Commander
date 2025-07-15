@@ -224,6 +224,15 @@ public class MainActivity extends AppCompatActivity {
             refreshAllActionButtonsDisplay();
         });
 
+        float fabHideShowX = appTinyDB.getFloat("fabHideShow_x", -9999f);
+        float fabHideShowY = appTinyDB.getFloat("fabHideShow_y", -9999f);
+        if (fabHideShowX != -9999f) {
+            fabHideShow.setX(fabHideShowX);
+        }
+        if (fabHideShowY != -9999f) {
+            fabHideShow.setY(fabHideShowY);
+        }
+
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
         screenWidth  = dm.widthPixels;
@@ -292,17 +301,17 @@ public class MainActivity extends AppCompatActivity {
                 /* .bin caching via IndexedDB */
                 view.evaluateJavascript(
                         "(function(){\n"
-                        + "const BIN=/\\.bin$/i,IDB_NAME=\'flyff_bin_cache\',STORE=\'blobs\',VER=1;\n"
+                        + "const BIN=/\\.bin$/i,IDB_NAME='flyff_bin_cache',STORE='blobs',VER=1;\n"
                         + "let db;\n"
-                        + "const openDb=()=>new Promise((res,rej)=>{\n"
+                        + "const openDb=()=>new Promise((res,rej)=>{ \n"
                         + "  const r=indexedDB.open(IDB_NAME,VER);\n"
                         + "  r.onupgradeneeded=()=>r.result.createObjectStore(STORE);\n"
                         + "  r.onsuccess=()=>res(r.result);\n"
                         + "  r.onerror=()=>rej(r.error);\n"
                         + "});\n"
-                        + "const key=u=>{try{return new URL(u).origin+new URL(u).pathname}catch{return u.split(\'\')[0]}};\n"
-                        + "const get=u=>openDb().then(d=>d.transaction(STORE,\'readonly\').objectStore(STORE).get(key(u)));\n"
-                        + "const put=(u,b)=>openDb().then(d=>d.transaction(STORE,\'readwrite\').objectStore(STORE).put(b,key(u)));\n"
+                        + "const key=u=>{try{return new URL(u).origin+new URL(u).pathname}catch{return u.split('')[0]}};\n"
+                        + "const get=u=>openDb().then(d=>d.transaction(STORE,'readonly').objectStore(STORE).get(key(u)));\n"
+                        + "const put=(u,b)=>openDb().then(d=>d.transaction(STORE,'readwrite').objectStore(STORE).put(b,key(u)));\n"
                         + "const Native=XMLHttpRequest;\n"
                         + "window.XMLHttpRequest=function(){\n"
                         + "  const xhr=new Native,open=xhr.open,send=xhr.send;\n"
@@ -315,13 +324,13 @@ public class MainActivity extends AppCompatActivity {
                         + "    const u=this._url;\n"
                         + "    get(u).then(blob=>{\n"
                         + "      if(blob){\n"
-                        + "        [\'response\',\'responseText\',\'readyState\',\'status\',\'statusText\'].forEach(p=>Object.defineProperty(xhr,p,{writable:true}));\n"
-                        + "        xhr.response=blob;xhr.responseText=\'\';xhr.readyState=4;xhr.status=200;xhr.statusText=\'OK\';\n"
+                        + "        ['response','responseText','readyState','status','statusText'].forEach(p=>Object.defineProperty(xhr,p,{writable:true}));\n"
+                        + "        xhr.response=blob;xhr.responseText='';xhr.readyState=4;xhr.status=200;xhr.statusText='OK';\n"
                         + "        if(xhr.onreadystatechange)xhr.onreadystatechange();\n"
                         + "        if(xhr.onload)xhr.onload();\n"
                         + "        return;\n"
                         + "      }\n"
-                        + "      xhr.addEventListener(\'load\',()=>{\n"
+                        + "      xhr.addEventListener('load',()=>{\n"
                         + "        if(xhr.status===200&&xhr.response instanceof Blob)put(u,xhr.response);\n"
                         + "      });\n"
                         + "      send.apply(xhr,a);\n"
@@ -865,28 +874,22 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Select Button to Delete");
         builder.setItems(buttonLabels, (dialog, whichButton) -> {
             String selectedKeyText = buttonLabels[whichButton].toString();
-            // Find the ActionButtonData object and its corresponding View
-            View fabViewToRemove = null;
+            
             ActionButtonData dataToRemove = null;
-            for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                if (entry.getValue().keyText.equals(selectedKeyText)) {
-                    fabViewToRemove = entry.getKey();
-                    dataToRemove = entry.getValue();
-                    break;
+            if (clientButtons != null) {
+                for (ActionButtonData data : clientButtons) {
+                    if (data.keyText.equals(selectedKeyText)) {
+                        dataToRemove = data;
+                        break;
+                    }
                 }
             }
 
-            if (fabViewToRemove != null && dataToRemove != null) {
-                rootContainer.removeView(fabViewToRemove);
-                fabViewToActionDataMap.remove(fabViewToRemove);
-
-                // Remove from clientActionButtonsData
-                if (clientButtons != null) {
-                    clientButtons.remove(dataToRemove);
-                }
-
+            if (dataToRemove != null) {
+                clientButtons.remove(dataToRemove);
+                saveActionButtonsState(clientId);
+                refreshAllActionButtonsDisplay();
                 Toast.makeText(this, selectedKeyText + " Action Button deleted.", Toast.LENGTH_SHORT).show();
-                saveActionButtonsState(dataToRemove.clientId); // Save state after deletion
             }
         });
         builder.show();
@@ -904,6 +907,8 @@ public class MainActivity extends AppCompatActivity {
             // Default position (0,0) and black color
             ActionButtonData newButtonData = new ActionButtonData(key, (int)keyCodeMap.get(key), 0f, 0f, Color.BLACK, activeClientId);
             createCustomFab(newButtonData);
+            saveActionButtonsState(activeClientId);
+            fabHideShow.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.show();
@@ -923,7 +928,9 @@ public class MainActivity extends AppCompatActivity {
                     // Default position (0,0) and black color
                     ActionButtonData newButtonData = new ActionButtonData(key, keyCode, 0f, 0f, Color.BLACK, activeClientId);
                     createCustomFab(newButtonData);
-            Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
+                    saveActionButtonsState(activeClientId);
+                    fabHideShow.setVisibility(View.VISIBLE);
+                    Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
                 }
@@ -995,6 +1002,8 @@ public class MainActivity extends AppCompatActivity {
             // Default position (0,0) and black color
             ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false);
             createCustomFab(newButtonData);
+            saveActionButtonsState(activeClientId);
+            fabHideShow.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1072,6 +1081,8 @@ public class MainActivity extends AppCompatActivity {
             // Default position (0,0) and black color
             ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false);
             createCustomFab(newButtonData);
+            saveActionButtonsState(activeClientId);
+            fabHideShow.setVisibility(View.VISIBLE);
             Toast.makeText(this, "Timed Repeat Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1092,7 +1103,11 @@ public class MainActivity extends AppCompatActivity {
         // Programmatically create circular background with specified color
         android.graphics.drawable.GradientDrawable circularBackground = new android.graphics.drawable.GradientDrawable();
         circularBackground.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        circularBackground.setColor(buttonData.color); // Use color from buttonData
+        if (buttonData.macroType == ActionButtonData.TYPE_TIMED_REPEAT_MACRO && buttonData.isToggleOn) {
+            circularBackground.setColor(Color.CYAN);
+        } else {
+            circularBackground.setColor(buttonData.color); // Use color from buttonData
+        }
         fabContainer.setBackground(circularBackground); // Set circular background directly on container
         fabContainer.setElevation(0f); // Remove shadow
 
@@ -1228,7 +1243,8 @@ public class MainActivity extends AppCompatActivity {
                     if (dx < slop && dy < slop && eventDuration < ViewConfiguration.getLongPressTimeout()) {
                         v.performClick();
                     } else {
-                        snapFabToEdge(v);
+                        appTinyDB.putFloat("fabHideShow_x", v.getX());
+                        appTinyDB.putFloat("fabHideShow_y", v.getY());
                     }
                     return true;
                 case MotionEvent.ACTION_MOVE:
@@ -1433,7 +1449,7 @@ public class MainActivity extends AppCompatActivity {
             android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) fabView.getBackground();
             if (background != null) {
                 if (buttonData.isToggleOn) {
-                    background.setColor(Color.GREEN);
+                    background.setColor(Color.CYAN);
                 } else {
                     background.setColor(buttonData.color); // Revert to original color
                 }
