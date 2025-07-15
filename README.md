@@ -4,7 +4,7 @@ A powerful and enhanced WebViewClient for playing Flyff Universe on Android. It 
 
 ## Origin and License
 
-This project is a modified version of the [FlyffU WebView Client](https://github.com/original-repo-link) (replace with actual link if available). It is released under the **GNU General Public License v3.0 (GPLv3)**.
+This project is a modified version of the [FlyffU WebView Client](https://github.com/ils94/FlyffUAndroid). It is released under the **GNU General Public License v3.0 (GPLv3)**.
 
 **Modifications:** This version includes significant enhancements, such as advanced action button functionalities (macros, timed repeats), improved persistence, and a dedicated hide/show button for action buttons.
 
