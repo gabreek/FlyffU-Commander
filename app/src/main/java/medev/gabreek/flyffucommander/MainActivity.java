@@ -202,7 +202,6 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         appTinyDB = new TinyDB(this, "app_prefs");
         isActionButtonsVisible = appTinyDB.getBoolean("isActionButtonsVisible");
-        fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
         setContentView(R.layout.activity_main);
         setTitle("FlyffU Android");
 
@@ -219,6 +218,7 @@ public class MainActivity extends AppCompatActivity {
         floatingActionButton.setAlpha(0.5f);
 
         fabHideShow = findViewById(R.id.fab_hide_show);
+        fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
         fabHideShow.setOnClickListener(v -> {
             isActionButtonsVisible = !isActionButtonsVisible;
             appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
