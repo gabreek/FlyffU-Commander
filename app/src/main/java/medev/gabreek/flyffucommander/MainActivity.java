@@ -926,7 +926,7 @@ public class MainActivity extends AppCompatActivity {
             ActionButtonData newButtonData = new ActionButtonData(key, (int)keyCodeMap.get(key), 0f, 0f, Color.BLACK, activeClientId);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
-            fabHideShow.setVisibility(View.VISIBLE);
+            refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.show();
@@ -947,7 +947,7 @@ public class MainActivity extends AppCompatActivity {
                     ActionButtonData newButtonData = new ActionButtonData(key, keyCode, 0f, 0f, Color.BLACK, activeClientId);
                     createCustomFab(newButtonData);
                     saveActionButtonsState(activeClientId);
-                    fabHideShow.setVisibility(View.VISIBLE);
+                    refreshAllActionButtonsDisplay();
                     Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
@@ -1021,7 +1021,7 @@ public class MainActivity extends AppCompatActivity {
             ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
-            fabHideShow.setVisibility(View.VISIBLE);
+            refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1100,7 +1100,7 @@ public class MainActivity extends AppCompatActivity {
             ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
-            fabHideShow.setVisibility(View.VISIBLE);
+            refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Timed Repeat Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1299,7 +1299,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Now, set the visibility of the fabHideShow button and individual action buttons
         if (hasAnyActionButtons) {
-            fabHideShow.setVisibility(View.VISIBLE);
+            fabHideShow.setVisibility(View.VISIBLE); // Always show fabHideShow if there are any action buttons
             fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
 
             // Set visibility for each created custom FAB
