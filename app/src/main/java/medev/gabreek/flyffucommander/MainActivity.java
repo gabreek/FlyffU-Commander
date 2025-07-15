@@ -15,6 +15,7 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.ViewTreeObserver;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewConfiguration;
@@ -225,10 +226,19 @@ public class MainActivity extends AppCompatActivity {
             refreshAllActionButtonsDisplay();
         });
 
-        float fabHideShowX = appTinyDB.getFloat("fabHideShow_x");
-        float fabHideShowY = appTinyDB.getFloat("fabHideShow_y");
-        fabHideShow.setX(fabHideShowX);
-        fabHideShow.setY(fabHideShowY);
+        // Load and set fabHideShow position after layout is complete
+        fabHideShow.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                fabHideShow.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                float fabHideShowX = appTinyDB.getFloat("fabHideShow_x");
+                float fabHideShowY = appTinyDB.getFloat("fabHideShow_y");
+                if (fabHideShowX != 0f || fabHideShowY != 0f) { // Only apply if a saved position exists
+                    fabHideShow.setX(fabHideShowX);
+                    fabHideShow.setY(fabHideShowY);
+                }
+            }
+        });
 
         DisplayMetrics dm = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(dm);
@@ -408,10 +418,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void snapFabToEdge(View v) {
         int w = v.getWidth();
+        int h = v.getHeight();
         float x = v.getX();
+        float y = v.getY();
+
+        // Snap X to edge
         if (x < -w / 2f) x = -w / 2f;
         if (x > screenWidth - w / 2f) x = screenWidth - w / 2f;
+
+        // Snap Y to edge
+        if (y < -h / 2f) y = -h / 2f;
+        if (y > screenHeight - h / 2f) y = screenHeight - h / 2f;
+
         ObjectAnimator.ofFloat(v, "x", x).setDuration(200).start();
+        ObjectAnimator.ofFloat(v, "y", y).setDuration(200).start();
     }
 
     /* ---------- client helper methods ---------- */
@@ -922,10 +942,13 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Select Function Key");
         builder.setItems(fKeys, (dialog, item) -> {
             String key = fKeys[item].toString();
-            // Default position (0,0) and black color
-            ActionButtonData newButtonData = new ActionButtonData(key, (int)keyCodeMap.get(key), 0f, 0f, Color.BLACK, activeClientId);
+            // Calculate center position
+            float centerX = screenWidth / 2f;
+            float centerY = screenHeight / 2f;
+            ActionButtonData newButtonData = new ActionButtonData(key, (int)keyCodeMap.get(key), centerX, centerY, Color.BLACK, activeClientId);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
+            isActionButtonsVisible = true; // Ensure new button is visible
             refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
         });
@@ -943,10 +966,13 @@ public class MainActivity extends AppCompatActivity {
             if (key.length() == 1) {
                 int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
                 if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                    // Default position (0,0) and black color
-                    ActionButtonData newButtonData = new ActionButtonData(key, keyCode, 0f, 0f, Color.BLACK, activeClientId);
+                    // Calculate center position
+                    float centerX = screenWidth / 2f;
+                    float centerY = screenHeight / 2f;
+                    ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId);
                     createCustomFab(newButtonData);
                     saveActionButtonsState(activeClientId);
+                    isActionButtonsVisible = true; // Ensure new button is visible
                     refreshAllActionButtonsDisplay();
                     Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
                 } else {
@@ -1018,9 +1044,13 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // Default position (0,0) and black color
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false);
+            // Calculate center position
+            float centerX = screenWidth / 2f;
+            float centerY = screenHeight / 2f;
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
+            isActionButtonsVisible = true; // Ensure new button is visible
             refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
@@ -1097,9 +1127,13 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // Default position (0,0) and black color
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, 0f, 0f, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false);
+            // Calculate center position
+            float centerX = screenWidth / 2f;
+            float centerY = screenHeight / 2f;
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
+            isActionButtonsVisible = true; // Ensure new button is visible
             refreshAllActionButtonsDisplay();
             Toast.makeText(this, "Timed Repeat Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
