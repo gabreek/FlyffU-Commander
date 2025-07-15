@@ -831,7 +831,7 @@ public class MainActivity extends AppCompatActivity {
                 // Find the corresponding view to update its color live.
                 View selectedFabView = null;
                 for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                    if (entry.getValue() == selectedButtonData) { // Compare by object reference
+                    if (entry.getValue().equals(selectedButtonData)) { // Compare by object content
                         selectedFabView = entry.getKey();
                         break;
                     }
@@ -1500,11 +1500,13 @@ public class MainActivity extends AppCompatActivity {
 
     @Override protected void onPause() {
         super.onPause();
+        appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
         for (int clientId : configuredClientIds) {
             if (clientActionButtonsData.containsKey(clientId)) {
                 saveActionButtonsState(clientId);
