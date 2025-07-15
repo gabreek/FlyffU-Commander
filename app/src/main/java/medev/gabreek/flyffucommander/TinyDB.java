@@ -1,4 +1,4 @@
-package com.droidev.flyffuwebviewclient;
+package medev.gabreek.flyffucommander;
 
 /*
  * Copyright 2014 KC Ochibili

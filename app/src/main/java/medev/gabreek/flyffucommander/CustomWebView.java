@@ -1,4 +1,4 @@
-package com.droidev.flyffuwebviewclient;
+package medev.gabreek.flyffucommander;
 
 import android.content.Context;
 import android.util.AttributeSet;

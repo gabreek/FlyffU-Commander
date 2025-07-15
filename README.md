@@ -1,6 +1,12 @@
-# FlyffU WebView Client
+# Flyff U Commander
 
-A lightweight WebViewClient for playing Flyff Universe on Android. It allows you to play with multiple clients and access useful utilities.
+A powerful and enhanced WebViewClient for playing Flyff Universe on Android. It allows you to play with multiple clients, automate tasks with macros, and access useful utilities.
+
+## Origin and License
+
+This project is a modified version of the [FlyffU WebView Client](https://github.com/original-repo-link) (replace with actual link if available). It is released under the **GNU General Public License v3.0 (GPLv3)**.
+
+**Modifications:** This version includes significant enhancements, such as advanced action button functionalities (macros, timed repeats), improved persistence, and a dedicated hide/show button for action buttons.
 
 ## Features
 
@@ -10,16 +16,16 @@ A lightweight WebViewClient for playing Flyff Universe on Android. It allows you
 *   **Quick Switching**: Easily switch between open clients with a tap on the floating action button (FAB).
 *   **Rename Clients**: Customize the names of your clients for better organization.
 *   **Delete Clients**: Remove clients and their saved data when you no longer need them.
-*   **Utilities Menu**: Quickly access useful websites suchs as:
+*   **Utilities Menu**: Quickly access useful websites such as:
     *   Flyff Wiki
     *   Madrigal Inside
     *   Flyffulator
-*   **Data Persistence**: Each client's data (including action button configurations) is saved individually, allowing you to continue where you left off.
+*   **Data Persistence**: Each client's data (including action button configurations, positions, colors, and macro states) is saved individually, allowing you to continue where you left off.
 *   **Action Buttons (ABs)**: Create custom on-screen buttons for various actions.
     *   **Normal Buttons**: Dispatch a single key press (e.g., 'F1', '1', 'A').
     *   **Macro Buttons**: Execute a sequence of key presses with a customizable delay between each key (e.g., "1,2,3").
-    *   **Timed Repeat Macro Buttons**: Toggle continuous repetition of a single key press at a user-defined interval.
-*   **Hide/Show Action Buttons**: A dedicated button will appear on the screen if any action buttons are created. Tap this button to toggle the visibility of all action buttons. Its state (hidden/shown) is automatically saved.
+    *   **Timed Repeat Macro Buttons**: Toggle continuous repetition of a single key press at a user-defined interval. The button's color visually indicates its active/inactive state.
+*   **Hide/Show Action Buttons**: A dedicated button will appear on the screen if any action buttons are created. Tap this button to toggle the visibility of all action buttons. Its state (hidden/shown) is automatically saved across app restarts.
 
 ## How to Use
 
@@ -43,8 +49,8 @@ A lightweight WebViewClient for playing Flyff Universe on Android. It allows you
         *   **New**: Create a new action button. You can choose from:
             *   **Function Key**: Assigns a standard function key (F1-F12).
             *   **Custom Key**: Assigns a single custom character key.
-            *   **Macro**: Defines a sequence of keys (e.g., "1,2,3") with a delay.
-            *   **Timed Repeat Macro**: Sets a single key to repeat at a specified interval, toggled on/off.
+            *   **Macro**: Defines a sequence of keys (e.g., "1,2,3") with a customizable name (max 2 letters) and a delay between 0.5s and 5s.
+            *   **Timed Repeat Macro**: Sets a single key to repeat at a specified interval, toggled on/off. Customizable name (max 2 letters) and repeat interval between 0.5s and 20s.
         *   **Color**: Change the color of an existing action button or all buttons for the selected client.
         *   **Delete**: Remove an existing action button.
     *   **Utils**:

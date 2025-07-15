@@ -1,4 +1,4 @@
-package com.droidev.flyffuwebviewclient;
+package medev.gabreek.flyffucommander;
 
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;

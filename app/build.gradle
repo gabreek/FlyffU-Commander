@@ -6,7 +6,7 @@ android {
     compileSdk 32
 
     defaultConfig {
-        applicationId "com.droidev.flyffuwebviewclient"
+        applicationId "medev.gabreek.flyffucommander"
         minSdk 23
         targetSdk 32
         versionCode 1
@@ -19,6 +19,25 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    signingConfigs {
+        release {
+            if (System.getenv("KEYSTORE_BASE64") != null) {
+                def keystoreFile = new File(project.rootDir, "release.jks")
+                def decodedKeystore = Base64.getDecoder().decode(System.getenv("KEYSTORE_BASE64"))
+                keystoreFile.withOutputStream { os -> os.write(decodedKeystore) }
+
+                storeFile keystoreFile
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
         }
     }
     compileOptions {
