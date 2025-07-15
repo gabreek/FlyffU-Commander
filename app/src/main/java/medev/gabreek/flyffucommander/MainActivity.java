@@ -202,6 +202,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         appTinyDB = new TinyDB(this, "app_prefs");
         isActionButtonsVisible = appTinyDB.getBoolean("isActionButtonsVisible");
+        fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
         setContentView(R.layout.activity_main);
         setTitle("FlyffU Android");
 
@@ -814,6 +815,7 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(this, "All buttons colored " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
                     saveActionButtonsState(clientId); // Save state after color change
                 });
+                dialog.dismiss(); // Dismiss the first dialog
                 colorBuilder.show();
             } else {
                 // The user selected a specific button. The index in the dialog is `whichButton`.
@@ -854,6 +856,7 @@ public class MainActivity extends AppCompatActivity {
                         Toast.makeText(this, selectedButtonData.keyText + " color changed to " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
                         saveActionButtonsState(clientId); // Save state after color change
                     });
+                    dialog.dismiss(); // Dismiss the first dialog
                     colorBuilder.show();
                 }
             }
@@ -1284,23 +1287,28 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        // Always create the custom FABs, but their visibility will be controlled later
+        for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
+            int clientId = entry.getKey();
+            if (webViews.get(clientId) != null) { // Only display buttons for active clients
+                for (ActionButtonData data : entry.getValue()) {
+                    createCustomFab(data);
+                }
+            }
+        }
+
+        // Now, set the visibility of the fabHideShow button and individual action buttons
         if (hasAnyActionButtons) {
             fabHideShow.setVisibility(View.VISIBLE);
             fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
+
+            // Set visibility for each created custom FAB
+            for (View fab : fabViewToActionDataMap.keySet()) {
+                fab.setVisibility(isActionButtonsVisible ? View.VISIBLE : View.GONE);
+            }
+
         } else {
             fabHideShow.setVisibility(View.GONE);
-        }
-
-        // Now, display only the action buttons for active clients if isActionButtonsVisible is true
-        if (isActionButtonsVisible) {
-            for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
-                int clientId = entry.getKey();
-                if (webViews.get(clientId) != null) { // Only display buttons for active clients
-                    for (ActionButtonData data : entry.getValue()) {
-                        createCustomFab(data);
-                    }
-                }
-            }
         }
     }
 
