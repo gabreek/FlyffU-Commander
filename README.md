@@ -10,6 +10,8 @@ This project is a modified version of the [FlyffU WebView Client](https://github
 
 ## Features
 
+[Demo Video](https://www.youtube.com/watch?v=Gwpo5B9kRac)
+
 *   **Immersive Fullscreen**: Enjoy a truly immersive experience with the application running in full screen.
 *   **Movable Floating Action Button (FAB)**: The main FAB can be dragged and repositioned anywhere on the screen for convenience.
 *   **Multiple Clients**: Open and manage several game instances simultaneously.
