@@ -68,10 +68,12 @@ public class MainActivity extends AppCompatActivity {
     private static final int WIKI_CLIENT_ID = -4;
     private static final int MADRIGAL_CLIENT_ID = -2;
     private static final int FLYFFULATOR_CLIENT_ID = -3;
+    private static final int FLYFFUSKILL_CLIENT_ID = -5;
 
     private static final String WIKI_URL = "https://flyff-wiki.gpotato.com.br/wiki/Main_Page";
     private static final String MADRIGAL_URL = "https://madrigalinside.com/";
     private static final String FLYFFULATOR_URL = "https://flyffulator.com/";
+    private static final String FLYFFUSKILL_URL = "https://flyffskillsimulator.vercel.app/";
 
     private static final int MAX_CLIENTS = 10;
     private static final String CLIENT_NAME_KEY = "client_custom_name";
@@ -553,6 +555,7 @@ public class MainActivity extends AppCompatActivity {
         if (id == WIKI_CLIENT_ID) return "Flyff Wiki";
         if (id == MADRIGAL_CLIENT_ID) return "Madrigal Inside";
         if (id == FLYFFULATOR_CLIENT_ID) return "Flyffulator";
+        if (id == FLYFFUSKILL_CLIENT_ID) return "Flyff Skill Simulator";
         TinyDB db = new TinyDB(this, "client_prefs_" + id);
         String custom = db.getString(CLIENT_NAME_KEY);
         return (custom != null && !custom.isEmpty()) ? custom : "Client " + id;
@@ -584,6 +587,8 @@ public class MainActivity extends AppCompatActivity {
         util.add(Menu.NONE, 7000 + Math.abs(WIKI_CLIENT_ID), Menu.NONE, "Flyff Wiki");
         util.add(Menu.NONE, 7000 + Math.abs(MADRIGAL_CLIENT_ID), Menu.NONE, "Madrigal Inside");
         util.add(Menu.NONE, 7000 + Math.abs(FLYFFULATOR_CLIENT_ID), Menu.NONE, "Flyffulator");
+        util.add(Menu.NONE, 7000 + Math.abs(FLYFFUSKILL_CLIENT_ID), Menu.NONE, "Flyff Skill Simulator");
+
 
         popup.setOnMenuItemClickListener(item -> {
             int id = -1, itemId = item.getItemId();
@@ -653,6 +658,8 @@ public class MainActivity extends AppCompatActivity {
             case WIKI_CLIENT_ID: u = WIKI_URL; break;
             case MADRIGAL_CLIENT_ID: u = MADRIGAL_URL; break;
             case FLYFFULATOR_CLIENT_ID: u = FLYFFULATOR_URL; break;
+            case FLYFFUSKILL_CLIENT_ID: u = FLYFFUSKILL_URL; break;
+
             default: return;
         }
         if (webViews.get(id) != null) {
@@ -845,7 +852,7 @@ public class MainActivity extends AppCompatActivity {
                     // Should not happen, but as a safeguard.
                     return;
                 }
-                
+
                 final ActionButtonData selectedButtonData = clientButtons.get(buttonIndex);
 
                 // Find the corresponding view to update its color live.
@@ -899,7 +906,7 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Select Button to Delete");
         builder.setItems(buttonLabels, (dialog, whichButton) -> {
             String selectedKeyText = buttonLabels[whichButton].toString();
-            
+
             // Find the ActionButtonData object and its corresponding View
             ActionButtonData dataToRemove = null;
             for (ActionButtonData data : clientButtons) {
