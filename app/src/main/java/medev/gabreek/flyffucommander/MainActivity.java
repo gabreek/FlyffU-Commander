@@ -454,7 +454,11 @@ public class MainActivity extends AppCompatActivity {
             reloadParams.setMargins(0, fabMargin, fabMargin, 0);
             fabReload.setLayoutParams(reloadParams);
             fabReload.setImageResource(android.R.drawable.ic_menu_rotate);
-            fabReload.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabReload.setAlpha(0.5f);
+            android.graphics.drawable.GradientDrawable circularBackgroundReload = new android.graphics.drawable.GradientDrawable();
+            circularBackgroundReload.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circularBackgroundReload.setColor(Color.WHITE);
+            fabReload.setBackground(circularBackgroundReload);
             fabReload.setOnClickListener(v -> webView.reload());
             frameLayout.addView(fabReload);
 
@@ -465,7 +469,11 @@ public class MainActivity extends AppCompatActivity {
             backParams.setMargins(0, fabMargin + fabSize + fabMargin, fabMargin, 0); // Position below reload
             fabBack.setLayoutParams(backParams);
             fabBack.setImageResource(android.R.drawable.ic_media_previous);
-            fabBack.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabBack.setAlpha(0.5f);
+            android.graphics.drawable.GradientDrawable circularBackgroundBack = new android.graphics.drawable.GradientDrawable();
+            circularBackgroundBack.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circularBackgroundBack.setColor(Color.WHITE);
+            fabBack.setBackground(circularBackgroundBack);
             fabBack.setOnClickListener(v -> {
                 if (webView.canGoBack()) {
                     webView.goBack();
@@ -480,7 +488,11 @@ public class MainActivity extends AppCompatActivity {
             killParams.setMargins(0, fabMargin + (fabSize + fabMargin) * 2, fabMargin, 0); // Position below back
             fabKill.setLayoutParams(killParams);
             fabKill.setImageResource(android.R.drawable.ic_delete);
-            fabKill.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabKill.setAlpha(0.5f);
+            android.graphics.drawable.GradientDrawable circularBackgroundKill = new android.graphics.drawable.GradientDrawable();
+            circularBackgroundKill.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+            circularBackgroundKill.setColor(Color.WHITE);
+            fabKill.setBackground(circularBackgroundKill);
             fabKill.setOnClickListener(v -> confirmCloseUtilityClient(clientId));
             frameLayout.addView(fabKill);
         }
@@ -1786,6 +1798,7 @@ public class MainActivity extends AppCompatActivity {
     private void dispatchSingleKeyEvent(WebView webView, int keyCode, boolean isAltPressed, boolean isCtrlPressed) {
         String key;
         String code;
+        int jsKeyCode;
         switch (keyCode) {
             case KeyEvent.KEYCODE_F1: key = "F1"; code = "F1"; jsKeyCode = 112; break;
             case KeyEvent.KEYCODE_F2: key = "F2"; code = "F2"; jsKeyCode = 113; break;
