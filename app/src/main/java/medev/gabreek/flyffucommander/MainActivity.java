@@ -124,6 +124,7 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton floatingActionButton;
     private FloatingActionButton fabHideShow;
     private boolean isActionButtonsVisible = true;
+    private boolean areActionButtonsPositionsFixed = false;
     private FrameLayout rootContainer;
     private final Map<Integer, List<ActionButtonData>> clientActionButtonsData = new HashMap<>();
     private final Map<View, ActionButtonData> fabViewToActionDataMap = new HashMap<>();
@@ -1166,20 +1167,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Combo Button '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-        builder.show();
-    }
-
-    private void showFunctionKeyOptionsDialog() {
-        final CharSequence[] items = {"Single Button (change active bar)", "Combo Button"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Function Key Type");
-        builder.setItems(items, (dialog, item) -> {
-            if (items[item].equals("Single Button (change active bar)")) {
-                showFunctionKeyDialog();
-            } else if (items[item].equals("Combo Button")) {
-                showComboButtonDialog();
-            }
-        });
         builder.show();
     }
 
