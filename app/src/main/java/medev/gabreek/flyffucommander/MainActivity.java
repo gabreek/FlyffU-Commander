@@ -34,6 +34,8 @@ import android.widget.PopupMenu;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -62,15 +64,48 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import android.widget.CheckBox;
+import android.text.InputFilter.LengthFilter;
+import android.text.Spanned;
+import android.widget.CompoundButton;
 
 public class MainActivity extends AppCompatActivity {
+
+    private static class InputFilterMinMax implements InputFilter {
+
+        private int min, max;
+
+        public InputFilterMinMax(int min, int max) {
+            this.min = min;
+            this.max = max;
+        }
+
+        public InputFilterMinMax(String min, String max) {
+            this.min = Integer.parseInt(min);
+            this.max = Integer.parseInt(max);
+        }
+
+        @Override
+        public CharSequence filter(CharSequence source, int start, int end, Spanned dest, int dstart, int dend) {
+            try {
+                int input = Integer.parseInt(dest.toString() + source.toString());
+                if (isInRange(min, max, input))
+                    return null;
+            } catch (NumberFormatException nfe) { }
+            return "";
+        }
+
+        private boolean isInRange(int a, int b, int c) {
+            return b > a ? c >= a && c <= b : c >= b && c <= a;
+        }
+    }
 
     private static final int WIKI_CLIENT_ID = -4;
     private static final int MADRIGAL_CLIENT_ID = -2;
     private static final int FLYFFULATOR_CLIENT_ID = -3;
     private static final int FLYFFUSKILL_CLIENT_ID = -5;
 
-    private static final String WIKI_URL = "https://flyff-wiki.gpotato.com.br/wiki/Main_Page";
+    private static final String WIKI_URL = "https://flyffipedia.com/";
     private static final String MADRIGAL_URL = "https://madrigalinside.com/";
     private static final String FLYFFULATOR_URL = "https://flyffulator.com/";
     private static final String FLYFFUSKILL_URL = "https://flyffskillsimulator.vercel.app/";
@@ -105,6 +140,7 @@ public class MainActivity extends AppCompatActivity {
         public static final int TYPE_NORMAL = 0;
         public static final int TYPE_MACRO = 1;
         public static final int TYPE_TIMED_REPEAT_MACRO = 2;
+        public static final int TYPE_COMBO = 3; // New type for combo button
 
         String keyText;
         int keyCode;
@@ -112,18 +148,31 @@ public class MainActivity extends AppCompatActivity {
         float y;
         int color; // Store color as an int
         int clientId; // Add clientId field
-        int macroType; // 0: normal, 1: macro, 2: timed repeat macro
+        int macroType; // 0: normal, 1: macro, 2: timed repeat macro, 3: combo
         String macroKeys; // Comma-separated key codes for macro
         float delayBetweenKeys; // Delay in seconds for macro
         int repeatKey; // Single key code for timed repeat macro
         float repeatInterval; // Interval in seconds for timed repeat macro
         boolean isToggleOn; // For timed repeat macro
+        boolean isAltPressed; // New field for Alt modifier
+        boolean isCtrlPressed; // New field for Ctrl modifier
+        int comboMainKey; // New field for combo button's main function key
+        int comboDigitKey; // New field for combo button's digit key
+        int comboAfterPressedKey; // New field for combo button's after pressed function key
 
         public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId) {
-            this(keyText, keyCode, x, y, color, clientId, TYPE_NORMAL, null, 0.0f, 0, 0.0f, false);
+            this(keyText, keyCode, x, y, color, clientId, TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, false, false, 0, 0, 0);
         }
 
         public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn) {
+            this(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, false, false, 0, 0, 0);
+        }
+
+        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn, boolean isAltPressed, boolean isCtrlPressed) {
+            this(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, isAltPressed, isCtrlPressed, 0, 0, 0);
+        }
+
+        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn, boolean isAltPressed, boolean isCtrlPressed, int comboMainKey, int comboDigitKey, int comboAfterPressedKey) {
             this.keyText = keyText;
             this.keyCode = keyCode;
             this.x = x;
@@ -136,6 +185,11 @@ public class MainActivity extends AppCompatActivity {
             this.repeatKey = repeatKey;
             this.repeatInterval = repeatInterval;
             this.isToggleOn = isToggleOn;
+            this.isAltPressed = isAltPressed;
+            this.isCtrlPressed = isCtrlPressed;
+            this.comboMainKey = comboMainKey;
+            this.comboDigitKey = comboDigitKey;
+            this.comboAfterPressedKey = comboAfterPressedKey;
         }
 
         @Override
@@ -153,13 +207,18 @@ public class MainActivity extends AppCompatActivity {
                    repeatKey == that.repeatKey &&
                    Float.compare(that.repeatInterval, repeatInterval) == 0 &&
                    isToggleOn == that.isToggleOn &&
+                   isAltPressed == that.isAltPressed &&
+                   isCtrlPressed == that.isCtrlPressed &&
+                   comboMainKey == that.comboMainKey &&
+                   comboDigitKey == that.comboDigitKey &&
+                   comboAfterPressedKey == that.comboAfterPressedKey &&
                    keyText.equals(that.keyText) &&
                    Objects.equals(macroKeys, that.macroKeys);
         }
 
         @Override
         public int hashCode() {
-            return java.util.Objects.hash(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn);
+            return java.util.Objects.hash(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, isAltPressed, isCtrlPressed, comboMainKey, comboDigitKey, comboAfterPressedKey);
         }
     }
 
@@ -226,6 +285,14 @@ public class MainActivity extends AppCompatActivity {
             isActionButtonsVisible = !isActionButtonsVisible;
             appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
             refreshAllActionButtonsDisplay();
+        });
+
+        fabHideShow.setOnLongClickListener(v -> {
+            areActionButtonsPositionsFixed = !areActionButtonsPositionsFixed;
+            appTinyDB.putBoolean("areActionButtonsPositionsFixed", areActionButtonsPositionsFixed);
+            Toast.makeText(this, "Action Button positions " + (areActionButtonsPositionsFixed ? "fixed" : "draggable"), Toast.LENGTH_SHORT).show();
+            refreshAllActionButtonsDisplay(); // Re-apply draggability
+            return true;
         });
 
         // Load and set fabHideShow position after layout is complete
@@ -373,6 +440,49 @@ public class MainActivity extends AppCompatActivity {
         frameLayout.addView(webView);
         webView.requestFocus();
         webView.loadUrl(initialUrl);
+
+        // Add utility FABs for specific client IDs
+        if (clientId == WIKI_CLIENT_ID || clientId == MADRIGAL_CLIENT_ID || clientId == FLYFFULATOR_CLIENT_ID || clientId == FLYFFUSKILL_CLIENT_ID) {
+            int fabMargin = dpToPx(10);
+            int fabSize = dpToPx(40);
+
+            // Reload FAB
+            FloatingActionButton fabReload = new FloatingActionButton(this);
+            FrameLayout.LayoutParams reloadParams = new FrameLayout.LayoutParams(fabSize, fabSize);
+            reloadParams.gravity = Gravity.TOP | Gravity.END;
+            reloadParams.setMargins(0, fabMargin, fabMargin, 0);
+            fabReload.setLayoutParams(reloadParams);
+            fabReload.setImageResource(android.R.drawable.ic_menu_rotate);
+            fabReload.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabReload.setOnClickListener(v -> webView.reload());
+            frameLayout.addView(fabReload);
+
+            // Go Back FAB
+            FloatingActionButton fabBack = new FloatingActionButton(this);
+            FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(fabSize, fabSize);
+            backParams.gravity = Gravity.TOP | Gravity.END;
+            backParams.setMargins(0, fabMargin + fabSize + fabMargin, fabMargin, 0); // Position below reload
+            fabBack.setLayoutParams(backParams);
+            fabBack.setImageResource(android.R.drawable.ic_media_previous);
+            fabBack.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabBack.setOnClickListener(v -> {
+                if (webView.canGoBack()) {
+                    webView.goBack();
+                }
+            });
+            frameLayout.addView(fabBack);
+
+            // Kill FAB
+            FloatingActionButton fabKill = new FloatingActionButton(this);
+            FrameLayout.LayoutParams killParams = new FrameLayout.LayoutParams(fabSize, fabSize);
+            killParams.gravity = Gravity.TOP | Gravity.END;
+            killParams.setMargins(0, fabMargin + (fabSize + fabMargin) * 2, fabMargin, 0); // Position below back
+            fabKill.setLayoutParams(killParams);
+            fabKill.setImageResource(android.R.drawable.ic_delete);
+            fabKill.setBackgroundTintList(ColorStateList.valueOf(Color.WHITE));
+            fabKill.setOnClickListener(v -> confirmCloseUtilityClient(clientId));
+            frameLayout.addView(fabKill);
+        }
     }
 
     /* ---------- rest of the file unchanged ---------- */
@@ -552,7 +662,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String getClientDisplayName(int id) {
-        if (id == WIKI_CLIENT_ID) return "Flyff Wiki";
+        if (id == WIKI_CLIENT_ID) return "Flyffipedia";
         if (id == MADRIGAL_CLIENT_ID) return "Madrigal Inside";
         if (id == FLYFFULATOR_CLIENT_ID) return "Flyffulator";
         if (id == FLYFFUSKILL_CLIENT_ID) return "Flyff Skill Simulator";
@@ -584,7 +694,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         SubMenu util = popup.getMenu().addSubMenu(Menu.NONE, 3, Menu.NONE, "Utils");
-        util.add(Menu.NONE, 7000 + Math.abs(WIKI_CLIENT_ID), Menu.NONE, "Flyff Wiki");
+        util.add(Menu.NONE, 7000 + Math.abs(WIKI_CLIENT_ID), Menu.NONE, "Flyffipedia");
         util.add(Menu.NONE, 7000 + Math.abs(MADRIGAL_CLIENT_ID), Menu.NONE, "Madrigal Inside");
         util.add(Menu.NONE, 7000 + Math.abs(FLYFFULATOR_CLIENT_ID), Menu.NONE, "Flyffulator");
         util.add(Menu.NONE, 7000 + Math.abs(FLYFFUSKILL_CLIENT_ID), Menu.NONE, "Flyff Skill Simulator");
@@ -791,7 +901,7 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Select Key Type");
         builder.setItems(items, (dialog, item) -> {
             if (items[item].equals("Function Key")) {
-                showFunctionKeyDialog();
+                showFunctionKeyOptionsDialog();
             } else if (items[item].equals("Custom Key")) {
                 showCustomKeyDialog();
             } else if (items[item].equals("Macro")) {
@@ -962,31 +1072,202 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    private void showFunctionKeyOptionsDialog() {
+        final CharSequence[] items = {"Single Button (change active bar)", "Combo Button"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Function Key Type");
+        builder.setItems(items, (dialog, item) -> {
+            if (items[item].equals("Single Button (change active bar)")) {
+                showFunctionKeyDialog();
+            } else if (items[item].equals("Combo Button")) {
+                showComboButtonDialog();
+            }
+        });
+        builder.show();
+    }
+
+    private void showComboButtonDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Create Combo Button");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
+        final CharSequence[] fKeys = new CharSequence[12];
+        for (int i = 0; i < 12; i++) {
+            fKeys[i] = "F" + (i + 1);
+        }
+
+        // Main Function Key Spinner
+        TextView mainKeyLabel = new TextView(this);
+        mainKeyLabel.setText("Select Main Function Key:");
+        layout.addView(mainKeyLabel);
+        final Spinner mainKeySpinner = new Spinner(this);
+        ArrayAdapter<CharSequence> mainKeyAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, fKeys);
+        mainKeyAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mainKeySpinner.setAdapter(mainKeyAdapter);
+        layout.addView(mainKeySpinner);
+
+        // Digit Key Input
+        final EditText digitInput = new EditText(this);
+        digitInput.setHint("Enter Digit Key (0-9)");
+        digitInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        digitInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+        layout.addView(digitInput);
+
+        // After Pressed Go To Bar Spinner
+        TextView afterPressedLabel = new TextView(this);
+        afterPressedLabel.setText("After Pressed Go To Bar:");
+        layout.addView(afterPressedLabel);
+        final Spinner afterPressedSpinner = new Spinner(this);
+        ArrayAdapter<CharSequence> afterPressedAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, fKeys);
+        afterPressedAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        afterPressedSpinner.setAdapter(afterPressedAdapter);
+        layout.addView(afterPressedSpinner);
+
+        builder.setView(layout);
+
+        builder.setPositiveButton("OK", (dialog, which) -> {
+            String mainKeyText = fKeys[mainKeySpinner.getSelectedItemPosition()].toString();
+            String digitKeyText = digitInput.getText().toString();
+            String afterPressedKeyText = fKeys[afterPressedSpinner.getSelectedItemPosition()].toString();
+
+            if (digitKeyText.isEmpty()) {
+                Toast.makeText(this, "Digit key cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int mainKeyCode = keyCodeMap.get(mainKeyText);
+            int digitKeyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + digitKeyText);
+            if (digitKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
+                digitKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + digitKeyText);
+            }
+            int afterPressedKeyCode = keyCodeMap.get(afterPressedKeyText);
+
+            String keyText = mainKeyText + "+" + digitKeyText + "->" + afterPressedKeyText;
+
+            // Calculate center position
+            float centerX = screenWidth / 2f;
+            float centerY = screenHeight / 2f;
+
+            ActionButtonData newButtonData = new ActionButtonData(
+                    keyText, // Display text for the button
+                    0, // keyCode is not directly used for combo, set to 0
+                    centerX, centerY, Color.BLACK, activeClientId,
+                    ActionButtonData.TYPE_COMBO, // Set macroType to COMBO
+                    null, 0.0f, 0, 0.0f, false, false, false, // Macro and timed repeat fields not used
+                    mainKeyCode, digitKeyCode, afterPressedKeyCode // Combo specific fields
+            );
+            createCustomFab(newButtonData);
+            saveActionButtonsState(activeClientId);
+            isActionButtonsVisible = true; // Ensure new button is visible
+            refreshAllActionButtonsDisplay();
+            Toast.makeText(this, "Combo Button '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+        builder.show();
+    }
+
+    private void showFunctionKeyOptionsDialog() {
+        final CharSequence[] items = {"Single Button (change active bar)", "Combo Button"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Function Key Type");
+        builder.setItems(items, (dialog, item) -> {
+            if (items[item].equals("Single Button (change active bar)")) {
+                showFunctionKeyDialog();
+            } else if (items[item].equals("Combo Button")) {
+                showComboButtonDialog();
+            }
+        });
+        builder.show();
+    }
+
     private void showCustomKeyDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Enter Custom Key");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 20, 50, 20);
+
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT);
-        builder.setView(input);
+        layout.addView(input);
+
+        final CheckBox altCheckBox = new CheckBox(this);
+        altCheckBox.setText("Alt");
+        layout.addView(altCheckBox);
+
+        final CheckBox ctrlCheckBox = new CheckBox(this);
+        ctrlCheckBox.setText("Ctrl");
+        layout.addView(ctrlCheckBox);
+
+        altCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                ctrlCheckBox.setChecked(false);
+                input.setInputType(InputType.TYPE_CLASS_NUMBER);
+                input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+            } else if (!ctrlCheckBox.isChecked()) {
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                input.setFilters(new InputFilter[] {});
+            }
+        });
+
+        ctrlCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                altCheckBox.setChecked(false);
+                input.setInputType(InputType.TYPE_CLASS_NUMBER);
+                input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+            } else if (!altCheckBox.isChecked()) {
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                input.setFilters(new InputFilter[] {});
+            }
+        });
+
+        builder.setView(layout);
         builder.setPositiveButton("OK", (dialog, which) -> {
             String key = input.getText().toString().toUpperCase();
-            if (key.length() == 1) {
-                int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
-                if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
+            boolean isAlt = altCheckBox.isChecked();
+            boolean isCtrl = ctrlCheckBox.isChecked();
+
+            if (isAlt || isCtrl) {
+                if (key.length() == 1 && Character.isDigit(key.charAt(0))) {
+                    int keyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + key);
+                    if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
+                        keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
+                    }
                     // Calculate center position
                     float centerX = screenWidth / 2f;
                     float centerY = screenHeight / 2f;
-                    ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId);
+                    ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, isAlt, isCtrl);
                     createCustomFab(newButtonData);
                     saveActionButtonsState(activeClientId);
                     isActionButtonsVisible = true; // Ensure new button is visible
                     refreshAllActionButtonsDisplay();
                     Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Please enter a single digit (0-9) when Alt or Ctrl is selected", Toast.LENGTH_SHORT).show();
                 }
-            } else {
-                Toast.makeText(this, "Please enter a single character", Toast.LENGTH_SHORT).show();
+            } else { // No modifier selected, allow any single character
+                if (key.length() == 1) {
+                    int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
+                    if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
+                        // Calculate center position
+                        float centerX = screenWidth / 2f;
+                        float centerY = screenHeight / 2f;
+                        ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, false, false);
+                        createCustomFab(newButtonData);
+                        saveActionButtonsState(activeClientId);
+                        isActionButtonsVisible = true; // Ensure new button is visible
+                        refreshAllActionButtonsDisplay();
+                        Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(this, "Please enter a single character", Toast.LENGTH_SHORT).show();
+                }
             }
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1011,6 +1292,36 @@ public class MainActivity extends AppCompatActivity {
         keysInput.setHint("Keys (e.g., 1,2,3)");
         keysInput.setInputType(InputType.TYPE_CLASS_TEXT);
         layout.addView(keysInput);
+
+        final CheckBox altCheckBox = new CheckBox(this);
+        altCheckBox.setText("Alt");
+        layout.addView(altCheckBox);
+
+        final CheckBox ctrlCheckBox = new CheckBox(this);
+        ctrlCheckBox.setText("Ctrl");
+        layout.addView(ctrlCheckBox);
+
+        altCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                ctrlCheckBox.setChecked(false);
+                keysInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+                keysInput.setFilters(new InputFilter[] {new InputFilterMinMax("0", "9")});
+            } else if (!ctrlCheckBox.isChecked()) {
+                keysInput.setInputType(InputType.TYPE_CLASS_TEXT);
+                keysInput.setFilters(new InputFilter[] {});
+            }
+        });
+
+        ctrlCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                altCheckBox.setChecked(false);
+                keysInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+                keysInput.setFilters(new InputFilter[] {new InputFilterMinMax("0", "9")});
+            } else if (!altCheckBox.isChecked()) {
+                keysInput.setInputType(InputType.TYPE_CLASS_TEXT);
+                keysInput.setFilters(new InputFilter[] {});
+            }
+        });
 
         TextView delayLabel = new TextView(this);
         delayLabel.setText("Delay between keys: 0.5s");
@@ -1040,6 +1351,8 @@ public class MainActivity extends AppCompatActivity {
             String name = nameInput.getText().toString().toUpperCase();
             String keys = keysInput.getText().toString();
             float delay = 0.5f + delaySlider.getProgress() * 0.1f;
+            boolean isAlt = altCheckBox.isChecked();
+            boolean isCtrl = ctrlCheckBox.isChecked();
 
             if (name.isEmpty() || keys.isEmpty()) {
                 Toast.makeText(this, "Name and keys cannot be empty", Toast.LENGTH_SHORT).show();
@@ -1050,11 +1363,21 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
+            if (isAlt || isCtrl) {
+                String[] individualKeys = keys.split(",");
+                for (String k : individualKeys) {
+                    if (k.length() != 1 || !Character.isDigit(k.charAt(0))) {
+                        Toast.makeText(this, "When Alt or Ctrl is selected, keys must be single digits (0-9) separated by commas", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+            }
+
             // Default position (0,0) and black color
             // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false);
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false, isAlt, isCtrl);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
             isActionButtonsVisible = true; // Ensure new button is visible
@@ -1085,6 +1408,36 @@ public class MainActivity extends AppCompatActivity {
         keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
         layout.addView(keyInput);
 
+        final CheckBox altCheckBox = new CheckBox(this);
+        altCheckBox.setText("Alt");
+        layout.addView(altCheckBox);
+
+        final CheckBox ctrlCheckBox = new CheckBox(this);
+        ctrlCheckBox.setText("Ctrl");
+        layout.addView(ctrlCheckBox);
+
+        altCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                ctrlCheckBox.setChecked(false);
+                keyInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+            } else if (!ctrlCheckBox.isChecked()) {
+                keyInput.setInputType(InputType.TYPE_CLASS_TEXT);
+                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
+            }
+        });
+
+        ctrlCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                altCheckBox.setChecked(false);
+                keyInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+            } else if (!altCheckBox.isChecked()) {
+                keyInput.setInputType(InputType.TYPE_CLASS_TEXT);
+                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
+            }
+        });
+
         TextView intervalLabel = new TextView(this);
         intervalLabel.setText("Repeat Interval: 0.5s");
         layout.addView(intervalLabel);
@@ -1113,6 +1466,8 @@ public class MainActivity extends AppCompatActivity {
             String name = nameInput.getText().toString().toUpperCase();
             String key = keyInput.getText().toString();
             float interval = 0.5f + intervalSlider.getProgress() * 0.1f;
+            boolean isAlt = altCheckBox.isChecked();
+            boolean isCtrl = ctrlCheckBox.isChecked();
 
             if (name.isEmpty() || key.isEmpty()) {
                 Toast.makeText(this, "Name and key cannot be empty", Toast.LENGTH_SHORT).show();
@@ -1122,22 +1477,35 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Name must be max 2 letters", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (key.length() != 1) {
-                Toast.makeText(this, "Key must be a single character", Toast.LENGTH_SHORT).show();
-                return;
-            }
 
-            int repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key.toUpperCase());
-            if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
-                Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
-                return;
+            int repeatKeyCode;
+            if (isAlt || isCtrl) {
+                if (key.length() == 1 && Character.isDigit(key.charAt(0))) {
+                    repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + key);
+                    if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
+                        repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
+                    }
+                } else {
+                    Toast.makeText(this, "Please enter a single digit (0-9) when Alt or Ctrl is selected", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            } else {
+                if (key.length() != 1) {
+                    Toast.makeText(this, "Key must be a single character", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key.toUpperCase());
+                if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
+                    Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
+                    return;
+                }
             }
 
             // Default position (0,0) and black color
             // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false);
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false, isAlt, isCtrl);
             createCustomFab(newButtonData);
             saveActionButtonsState(activeClientId);
             isActionButtonsVisible = true; // Ensure new button is visible
@@ -1224,7 +1592,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Make the entire container draggable
-        makeFabDraggable(fabContainer);
+        if (!areActionButtonsPositionsFixed) {
+            makeFabDraggable(fabContainer);
+        }
 
         return fabContainer;
     }
@@ -1412,7 +1782,7 @@ public class MainActivity extends AppCompatActivity {
     private void dispatchKeyEvent(WebView webView, ActionButtonData buttonData) {
         switch (buttonData.macroType) {
             case ActionButtonData.TYPE_NORMAL:
-                dispatchSingleKeyEvent(webView, buttonData.keyCode);
+                dispatchSingleKeyEvent(webView, buttonData.keyCode, buttonData.isAltPressed, buttonData.isCtrlPressed);
                 break;
             case ActionButtonData.TYPE_MACRO:
                 executeMacro(webView, buttonData);
@@ -1420,10 +1790,13 @@ public class MainActivity extends AppCompatActivity {
             case ActionButtonData.TYPE_TIMED_REPEAT_MACRO:
                 toggleTimedRepeatMacro(webView, buttonData);
                 break;
+            case ActionButtonData.TYPE_COMBO:
+                executeCombo(webView, buttonData);
+                break;
         }
     }
 
-    private void dispatchSingleKeyEvent(WebView webView, int keyCode) {
+    private void dispatchSingleKeyEvent(WebView webView, int keyCode, boolean isAltPressed, boolean isCtrlPressed) {
         String key;
         String code;
         switch (keyCode) {
@@ -1439,6 +1812,16 @@ public class MainActivity extends AppCompatActivity {
             case KeyEvent.KEYCODE_F10: key = "F10"; code = "F10"; break;
             case KeyEvent.KEYCODE_F11: key = "F11"; code = "F11"; break;
             case KeyEvent.KEYCODE_F12: key = "F12"; code = "F12"; break;
+            case KeyEvent.KEYCODE_NUMPAD_0: key = "0"; code = "Numpad0"; break;
+            case KeyEvent.KEYCODE_NUMPAD_1: key = "1"; code = "Numpad1"; break;
+            case KeyEvent.KEYCODE_NUMPAD_2: key = "2"; code = "Numpad2"; break;
+            case KeyEvent.KEYCODE_NUMPAD_3: key = "3"; code = "Numpad3"; break;
+            case KeyEvent.KEYCODE_NUMPAD_4: key = "4"; code = "Numpad4"; break;
+            case KeyEvent.KEYCODE_NUMPAD_5: key = "5"; code = "Numpad5"; break;
+            case KeyEvent.KEYCODE_NUMPAD_6: key = "6"; code = "Numpad6"; break;
+            case KeyEvent.KEYCODE_NUMPAD_7: key = "7"; code = "Numpad7"; break;
+            case KeyEvent.KEYCODE_NUMPAD_8: key = "8"; code = "Numpad8"; break;
+            case KeyEvent.KEYCODE_NUMPAD_9: key = "9"; code = "Numpad9"; break;
             default:
                 key = String.valueOf((char) (new KeyEvent(KeyEvent.ACTION_DOWN, keyCode)).getUnicodeChar());
                 code = "Key" + key.toUpperCase();
@@ -1447,12 +1830,28 @@ public class MainActivity extends AppCompatActivity {
 
         String script = "javascript:(function() {" +
                 "var canvas = document.querySelector('canvas');" +
-                "if (canvas) {" +
-                "   var eventProps = { bubbles: true, cancelable: true, key: '" + key + "', code: '" + code + "', keyCode: " + keyCode + " };" +
-                "   canvas.dispatchEvent(new KeyboardEvent('keydown', eventProps));" +
-                "   canvas.dispatchEvent(new KeyboardEvent('keyup', eventProps));" +
-                "}" +
-                "})()";
+                "if (canvas) {" ;
+
+        if (isAltPressed) {
+            script += "   canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', code: 'AltLeft', keyCode: 18, bubbles: true, cancelable: true }));";
+        }
+        if (isCtrlPressed) {
+            script += "   canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Control', code: 'ControlLeft', keyCode: 17, bubbles: true, cancelable: true }));";
+        }
+
+        script += "   var mainEventProps = { bubbles: true, cancelable: true, key: '" + key + "', code: '" + code + "', keyCode: " + keyCode + " };" +
+                  "   canvas.dispatchEvent(new KeyboardEvent('keydown', mainEventProps));" +
+                  "   canvas.dispatchEvent(new KeyboardEvent('keyup', mainEventProps));";
+
+        if (isAltPressed) {
+            script += "   canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft', keyCode: 18, bubbles: true, cancelable: true }));";
+        }
+        if (isCtrlPressed) {
+            script += "   canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Control', code: 'ControlLeft', keyCode: 17, bubbles: true, cancelable: true }));";
+        }
+
+        script += "}" +
+                  "})()";
         webView.evaluateJavascript(script, null);
     }
 
@@ -1462,8 +1861,24 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < keys.length; i++) {
             final int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + keys[i].trim().toUpperCase());
             final int delay = (int) (buttonData.delayBetweenKeys * 1000 * i);
-            handler.postDelayed(() -> dispatchSingleKeyEvent(webView, keyCode), delay);
+            handler.postDelayed(() -> dispatchSingleKeyEvent(webView, keyCode, buttonData.isAltPressed, buttonData.isCtrlPressed), delay);
         }
+    }
+
+    private void executeCombo(WebView webView, ActionButtonData buttonData) {
+        Handler handler = new Handler();
+        long delay = 0;
+
+        // Dispatch Main Function Key
+        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboMainKey, false, false), delay);
+        delay += 100; // Small delay between keys
+
+        // Dispatch Digit Key
+        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboDigitKey, false, false), delay);
+        delay += 100; // Small delay between keys
+
+        // Dispatch After Pressed Key
+        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboAfterPressedKey, false, false), delay);
     }
 
     private void toggleTimedRepeatMacro(WebView webView, ActionButtonData buttonData) {
@@ -1486,13 +1901,13 @@ public class MainActivity extends AppCompatActivity {
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    dispatchSingleKeyEvent(webView, buttonData.repeatKey);
+                    dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
                     handler.postDelayed(this, (long) (buttonData.repeatInterval * 1000));
                 }
             };
             timedRepeatMacroHandlers.put(buttonData.keyText, handler);
             // Initial dispatch
-            dispatchSingleKeyEvent(webView, buttonData.repeatKey);
+            dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
             handler.postDelayed(runnable, (long) (buttonData.repeatInterval * 1000));
         } else {
             // Stop repeating
@@ -1548,6 +1963,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
+        appTinyDB.putBoolean("areActionButtonsPositionsFixed", areActionButtonsPositionsFixed);
         for (int clientId : configuredClientIds) {
             if (clientActionButtonsData.containsKey(clientId)) {
                 saveActionButtonsState(clientId);
