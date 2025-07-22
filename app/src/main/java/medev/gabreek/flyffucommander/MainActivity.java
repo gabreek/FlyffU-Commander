@@ -1787,31 +1787,42 @@ public class MainActivity extends AppCompatActivity {
         String key;
         String code;
         switch (keyCode) {
-            case KeyEvent.KEYCODE_F1: key = "F1"; code = "F1"; break;
-            case KeyEvent.KEYCODE_F2: key = "F2"; code = "F2"; break;
-            case KeyEvent.KEYCODE_F3: key = "F3"; code = "F3"; break;
-            case KeyEvent.KEYCODE_F4: key = "F4"; code = "F4"; break;
-            case KeyEvent.KEYCODE_F5: key = "F5"; code = "F5"; break;
-            case KeyEvent.KEYCODE_F6: key = "F6"; code = "F6"; break;
-            case KeyEvent.KEYCODE_F7: key = "F7"; code = "F7"; break;
-            case KeyEvent.KEYCODE_F8: key = "F8"; code = "F8"; break;
-            case KeyEvent.KEYCODE_F9: key = "F9"; code = "F9"; break;
-            case KeyEvent.KEYCODE_F10: key = "F10"; code = "F10"; break;
-            case KeyEvent.KEYCODE_F11: key = "F11"; code = "F11"; break;
-            case KeyEvent.KEYCODE_F12: key = "F12"; code = "F12"; break;
-            case KeyEvent.KEYCODE_NUMPAD_0: key = "0"; code = "Numpad0"; break;
-            case KeyEvent.KEYCODE_NUMPAD_1: key = "1"; code = "Numpad1"; break;
-            case KeyEvent.KEYCODE_NUMPAD_2: key = "2"; code = "Numpad2"; break;
-            case KeyEvent.KEYCODE_NUMPAD_3: key = "3"; code = "Numpad3"; break;
-            case KeyEvent.KEYCODE_NUMPAD_4: key = "4"; code = "Numpad4"; break;
-            case KeyEvent.KEYCODE_NUMPAD_5: key = "5"; code = "Numpad5"; break;
-            case KeyEvent.KEYCODE_NUMPAD_6: key = "6"; code = "Numpad6"; break;
-            case KeyEvent.KEYCODE_NUMPAD_7: key = "7"; code = "Numpad7"; break;
-            case KeyEvent.KEYCODE_NUMPAD_8: key = "8"; code = "Numpad8"; break;
-            case KeyEvent.KEYCODE_NUMPAD_9: key = "9"; code = "Numpad9"; break;
+            case KeyEvent.KEYCODE_F1: key = "F1"; code = "F1"; jsKeyCode = 112; break;
+            case KeyEvent.KEYCODE_F2: key = "F2"; code = "F2"; jsKeyCode = 113; break;
+            case KeyEvent.KEYCODE_F3: key = "F3"; code = "F3"; jsKeyCode = 114; break;
+            case KeyEvent.KEYCODE_F4: key = "F4"; code = "F4"; jsKeyCode = 115; break;
+            case KeyEvent.KEYCODE_F5: key = "F5"; code = "F5"; jsKeyCode = 116; break;
+            case KeyEvent.KEYCODE_F6: key = "F6"; code = "F6"; jsKeyCode = 117; break;
+            case KeyEvent.KEYCODE_F7: key = "F7"; code = "F7"; jsKeyCode = 118; break;
+            case KeyEvent.KEYCODE_F8: key = "F8"; code = "F8"; jsKeyCode = 119; break;
+            case KeyEvent.KEYCODE_F9: key = "F9"; code = "F9"; jsKeyCode = 120; break;
+            case KeyEvent.KEYCODE_F10: key = "F10"; code = "F10"; jsKeyCode = 121; break;
+            case KeyEvent.KEYCODE_F11: key = "F11"; code = "F11"; jsKeyCode = 122; break;
+            case KeyEvent.KEYCODE_F12: key = "F12"; code = "F12"; jsKeyCode = 123; break;
+            case KeyEvent.KEYCODE_NUMPAD_0: key = "0"; code = "Numpad0"; jsKeyCode = 48; break;
+            case KeyEvent.KEYCODE_NUMPAD_1: key = "1"; code = "Numpad1"; jsKeyCode = 49; break;
+            case KeyEvent.KEYCODE_NUMPAD_2: key = "2"; code = "Numpad2"; jsKeyCode = 50; break;
+            case KeyEvent.KEYCODE_NUMPAD_3: key = "3"; code = "Numpad3"; jsKeyCode = 51; break;
+            case KeyEvent.KEYCODE_NUMPAD_4: key = "4"; code = "Numpad4"; jsKeyCode = 52; break;
+            case KeyEvent.KEYCODE_NUMPAD_5: key = "5"; code = "Numpad5"; jsKeyCode = 53; break;
+            case KeyEvent.KEYCODE_NUMPAD_6: key = "6"; code = "Numpad6"; jsKeyCode = 54; break;
+            case KeyEvent.KEYCODE_NUMPAD_7: key = "7"; code = "Numpad7"; jsKeyCode = 55; break;
+            case KeyEvent.KEYCODE_NUMPAD_8: key = "8"; code = "Numpad8"; jsKeyCode = 56; break;
+            case KeyEvent.KEYCODE_NUMPAD_9: key = "9"; code = "Numpad9"; jsKeyCode = 57; break;
+            case KeyEvent.KEYCODE_0: key = "0"; code = "Digit0"; jsKeyCode = 48; break;
+            case KeyEvent.KEYCODE_1: key = "1"; code = "Digit1"; jsKeyCode = 49; break;
+            case KeyEvent.KEYCODE_2: key = "2"; code = "Digit2"; jsKeyCode = 50; break;
+            case KeyEvent.KEYCODE_3: key = "3"; code = "Digit3"; jsKeyCode = 51; break;
+            case KeyEvent.KEYCODE_4: key = "4"; code = "Digit4"; jsKeyCode = 52; break;
+            case KeyEvent.KEYCODE_5: key = "5"; code = "Digit5"; jsKeyCode = 53; break;
+            case KeyEvent.KEYCODE_6: key = "6"; code = "Digit6"; jsKeyCode = 54; break;
+            case KeyEvent.KEYCODE_7: key = "7"; code = "Digit7"; jsKeyCode = 55; break;
+            case KeyEvent.KEYCODE_8: key = "8"; code = "Digit8"; jsKeyCode = 56; break;
+            case KeyEvent.KEYCODE_9: key = "9"; code = "Digit9"; jsKeyCode = 57; break;
             default:
                 key = String.valueOf((char) (new KeyEvent(KeyEvent.ACTION_DOWN, keyCode)).getUnicodeChar());
                 code = "Key" + key.toUpperCase();
+                jsKeyCode = keyCode; // Fallback to Android keyCode for others
                 break;
         }
 
@@ -1826,7 +1837,7 @@ public class MainActivity extends AppCompatActivity {
             script += "   canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Control', code: 'ControlLeft', keyCode: 17, bubbles: true, cancelable: true }));";
         }
 
-        script += "   var mainEventProps = { bubbles: true, cancelable: true, key: '" + key + "', code: '" + code + "', keyCode: " + keyCode + " };" +
+        script += "   var mainEventProps = { bubbles: true, cancelable: true, key: '" + key + "', code: '" + code + "', keyCode: " + jsKeyCode + " };" +
                   "   canvas.dispatchEvent(new KeyboardEvent('keydown', mainEventProps));" +
                   "   canvas.dispatchEvent(new KeyboardEvent('keyup', mainEventProps));";
 
