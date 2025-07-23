@@ -133,6 +133,8 @@ public class ClientManager {
         actionButtonManager.refreshAllActionButtonsDisplay(true, null, id);
     }
 
+    }
+
     public void switchToNextClient() {
         if (webViews.size() > 1) {
             List<Integer> ids = new ArrayList<>();
@@ -210,6 +212,16 @@ public class ClientManager {
     }
 
     public void createNewClient() {
+        // First, try to open an existing, but currently closed, client
+        for (int id : configuredClientIds) {
+            if (webViews.get(id) == null) { // Client is configured but not currently open
+                openClient(id);
+                Toast.makeText(context, "Client " + getClientDisplayName(id) + " opened", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+
+        // If all configured clients are open or there are no configured clients, create a new one
         if (webViews.size() >= Constants.MAX_CLIENTS) {
             Toast.makeText(context, "Max clients reached", Toast.LENGTH_SHORT).show();
             return;
@@ -225,7 +237,7 @@ public class ClientManager {
         configuredClientIds.add(newId);
         appTinyDB.putListInt("configuredClientIds", new ArrayList<>(configuredClientIds));
         openClient(newId);
-        Toast.makeText(context, "Client " + newId + " created", Toast.LENGTH_SHORT).show();
+        Toast.makeText(context, "Client " + getClientDisplayName(newId) + " created", Toast.LENGTH_SHORT).show();
     }
 
     public void openUtilityClient(int id) {

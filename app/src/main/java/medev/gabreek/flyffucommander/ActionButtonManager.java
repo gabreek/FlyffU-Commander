@@ -169,11 +169,8 @@ public class ActionButtonManager {
         boolean hasAnyActionButtons = clientActionButtonsData.values().stream().anyMatch(list -> !list.isEmpty());
 
         for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
-            int clientId = entry.getKey();
-            if (webViewsProvider.get().get(clientId) != null) {
-                for (ActionButtonData data : entry.getValue()) {
-                    createCustomFab(data);
-                }
+            for (ActionButtonData data : entry.getValue()) {
+                createCustomFab(data);
             }
         }
 
@@ -187,12 +184,7 @@ public class ActionButtonManager {
         }
 
         for (View fab : fabViewToActionDataMap.keySet()) {
-            ActionButtonData data = fabViewToActionDataMap.get(fab);
-            if (data != null && data.clientId == activeClientId) {
-                fab.setVisibility(isVisible ? View.VISIBLE : View.GONE);
-            } else {
-                fab.setVisibility(View.GONE);
-            }
+            fab.setVisibility(isVisible ? View.VISIBLE : View.GONE);
         }
     }
 
