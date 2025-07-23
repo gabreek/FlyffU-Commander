@@ -187,6 +187,8 @@ public class ActionButtonManager {
             fab.setVisibility(isVisible ? View.VISIBLE : View.GONE);
         }
 
+    }
+
     public void deleteAllCustomFabs() {
         for (View fab : fabViewToActionDataMap.keySet()) {
             rootContainer.removeView(fab);
