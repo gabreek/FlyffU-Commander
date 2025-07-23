@@ -3,10 +3,10 @@ package medev.gabreek.flyffucommander;
 import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.InputFilter;
 import android.text.InputType;
 import android.util.DisplayMetrics;
 import android.util.SparseArray;
@@ -15,18 +15,19 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
-import android.view.ViewTreeObserver;
 import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
-import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -35,7 +36,6 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.Spinner;
-import android.widget.ArrayAdapter;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
@@ -45,16 +45,12 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.lang.reflect.Type;
 import java.text.DecimalFormat;
-import java.util.Objects;
-import java.util.stream.Stream;
-import android.text.InputFilter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -64,55 +60,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import android.widget.CheckBox;
-import android.text.InputFilter.LengthFilter;
-import android.text.Spanned;
-import android.widget.CompoundButton;
+import java.util.stream.Stream;
 
-public class MainActivity extends AppCompatActivity {
-
-    private static class InputFilterMinMax implements InputFilter {
-
-        private int min, max;
-
-        public InputFilterMinMax(int min, int max) {
-            this.min = min;
-            this.max = max;
-        }
-
-        public InputFilterMinMax(String min, String max) {
-            this.min = Integer.parseInt(min);
-            this.max = Integer.parseInt(max);
-        }
-
-        @Override
-        public CharSequence filter(CharSequence source, int start, int end, Spanned dest, int dstart, int dend) {
-            try {
-                int input = Integer.parseInt(dest.toString() + source.toString());
-                if (isInRange(min, max, input))
-                    return null;
-            } catch (NumberFormatException nfe) { }
-            return "";
-        }
-
-        private boolean isInRange(int a, int b, int c) {
-            return b > a ? c >= a && c <= b : c >= b && c <= a;
-        }
-    }
-
-    private static final int WIKI_CLIENT_ID = -4;
-    private static final int MADRIGAL_CLIENT_ID = -2;
-    private static final int FLYFFULATOR_CLIENT_ID = -3;
-    private static final int FLYFFUSKILL_CLIENT_ID = -5;
-
-    private static final String WIKI_URL = "https://flyffipedia.com/";
-    private static final String MADRIGAL_URL = "https://madrigalinside.com/";
-    private static final String FLYFFULATOR_URL = "https://flyffulator.com/";
-    private static final String FLYFFUSKILL_URL = "https://flyffskillsimulator.vercel.app/";
-
-    private static final int MAX_CLIENTS = 10;
-    private static final String CLIENT_NAME_KEY = "client_custom_name";
-    private static final String ACTION_BUTTONS_DATA_KEY = "action_buttons_data";
+public class MainActivity extends AppCompatActivity implements FabMovementHandler.FabPositionSaver {
 
     private final SparseArray<WebView> webViews = new SparseArray<>();
     private final SparseArray<FrameLayout> layouts = new SparseArray<>();
@@ -129,144 +79,29 @@ public class MainActivity extends AppCompatActivity {
     private final Map<Integer, List<ActionButtonData>> clientActionButtonsData = new HashMap<>();
     private final Map<View, ActionButtonData> fabViewToActionDataMap = new HashMap<>();
     private final Map<String, Integer> keyCodeMap = new HashMap<>();
-
     private Gson gson = new Gson();
 
     private String userAgent = "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.5304.105 Mobile Safari/537.36";
     private String url = "https://universe.flyff.com/play";
     private boolean exit = false;
 
-    // Class to hold action button data for serialization
-    private static class ActionButtonData {
-        public static final int TYPE_NORMAL = 0;
-        public static final int TYPE_MACRO = 1;
-        public static final int TYPE_TIMED_REPEAT_MACRO = 2;
-        public static final int TYPE_COMBO = 3; // New type for combo button
-
-        String keyText;
-        int keyCode;
-        float x;
-        float y;
-        int color; // Store color as an int
-        int clientId; // Add clientId field
-        int macroType; // 0: normal, 1: macro, 2: timed repeat macro, 3: combo
-        String macroKeys; // Comma-separated key codes for macro
-        float delayBetweenKeys; // Delay in seconds for macro
-        int repeatKey; // Single key code for timed repeat macro
-        float repeatInterval; // Interval in seconds for timed repeat macro
-        boolean isToggleOn; // For timed repeat macro
-        boolean isAltPressed; // New field for Alt modifier
-        boolean isCtrlPressed; // New field for Ctrl modifier
-        int comboMainKey; // New field for combo button's main function key
-        int comboDigitKey; // New field for combo button's digit key
-        int comboAfterPressedKey; // New field for combo button's after pressed function key
-
-        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId) {
-            this(keyText, keyCode, x, y, color, clientId, TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, false, false, 0, 0, 0);
-        }
-
-        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn) {
-            this(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, false, false, 0, 0, 0);
-        }
-
-        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn, boolean isAltPressed, boolean isCtrlPressed) {
-            this(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, isAltPressed, isCtrlPressed, 0, 0, 0);
-        }
-
-        public ActionButtonData(String keyText, int keyCode, float x, float y, int color, int clientId, int macroType, String macroKeys, float delayBetweenKeys, int repeatKey, float repeatInterval, boolean isToggleOn, boolean isAltPressed, boolean isCtrlPressed, int comboMainKey, int comboDigitKey, int comboAfterPressedKey) {
-            this.keyText = keyText;
-            this.keyCode = keyCode;
-            this.x = x;
-            this.y = y;
-            this.color = color;
-            this.clientId = clientId;
-            this.macroType = macroType;
-            this.macroKeys = macroKeys;
-            this.delayBetweenKeys = delayBetweenKeys;
-            this.repeatKey = repeatKey;
-            this.repeatInterval = repeatInterval;
-            this.isToggleOn = isToggleOn;
-            this.isAltPressed = isAltPressed;
-            this.isCtrlPressed = isCtrlPressed;
-            this.comboMainKey = comboMainKey;
-            this.comboDigitKey = comboDigitKey;
-            this.comboAfterPressedKey = comboAfterPressedKey;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            ActionButtonData that = (ActionButtonData) o;
-            return keyCode == that.keyCode &&
-                   Float.compare(that.x, x) == 0 &&
-                   Float.compare(that.y, y) == 0 &&
-                   color == that.color &&
-                   clientId == that.clientId &&
-                   macroType == that.macroType &&
-                   Float.compare(that.delayBetweenKeys, delayBetweenKeys) == 0 &&
-                   repeatKey == that.repeatKey &&
-                   Float.compare(that.repeatInterval, repeatInterval) == 0 &&
-                   isToggleOn == that.isToggleOn &&
-                   isAltPressed == that.isAltPressed &&
-                   isCtrlPressed == that.isCtrlPressed &&
-                   comboMainKey == that.comboMainKey &&
-                   comboDigitKey == that.comboDigitKey &&
-                   comboAfterPressedKey == that.comboAfterPressedKey &&
-                   keyText.equals(that.keyText) &&
-                   Objects.equals(macroKeys, that.macroKeys);
-        }
-
-        @Override
-        public int hashCode() {
-            return java.util.Objects.hash(keyText, keyCode, x, y, color, clientId, macroType, macroKeys, delayBetweenKeys, repeatKey, repeatInterval, isToggleOn, isAltPressed, isCtrlPressed, comboMainKey, comboDigitKey, comboAfterPressedKey);
-        }
-    }
-
-    /* FAB movement */
-    private int _xDelta;
-    private int _yDelta;
+    private ActionButtonManager actionButtonManager;
+    private ClientManager clientManager;
+    private FabMovementHandler fabMovementHandler;
+    private KeyDispatcher keyDispatcher;
+    private DisplayUtils displayUtils;
     private int screenWidth;
     private int screenHeight;
-    private long downTime;
-    private float initialRawX;
-    private float initialRawY;
-    private final Handler longPressHandler = new Handler();
-    private Runnable longPressRunnable;
 
-    private int dpToPx(int dp) {
-        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-        return Math.round(dp * (displayMetrics.xdpi / DisplayMetrics.DENSITY_DEFAULT));
-    }
-
-    /* JS
- Android bridges */
-    public static class LocalStorageInterface {
-        private final TinyDB db;
-        LocalStorageInterface(Context context, int clientId) {
-            this.db = new TinyDB(context, "client_prefs_" + clientId);
-        }
-        @JavascriptInterface public void setItem(String k, String v) { db.putString(k, v); }
-        @JavascriptInterface public String getItem(String k) { return db.getString(k); }
-        @JavascriptInterface public void removeItem(String k) { db.remove(k); }
-        @JavascriptInterface public void clear() { db.clear(); }
-    }
-
-    public static class WebAppInterface {
-        private final Context mContext;
-        WebAppInterface(Context c) { mContext = c; }
-        @JavascriptInterface public void showKeyboard() {
-            InputMethodManager imm = (InputMethodManager) mContext.getSystemService(Context.INPUT_METHOD_SERVICE);
-            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, InputMethodManager.HIDE_IMPLICIT_ONLY);
-        }
-    }
-
-    @Override protected void onCreate(Bundle savedInstanceState) {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        appTinyDB = new TinyDB(this, "app_prefs");
-        isActionButtonsVisible = appTinyDB.getBoolean("isActionButtonsVisible");
         setContentView(R.layout.activity_main);
         setTitle("FlyffU Android");
+
+        appTinyDB = new TinyDB(this, "app_prefs");
+        isActionButtonsVisible = appTinyDB.getBoolean("isActionButtonsVisible");
+        areActionButtonsPositionsFixed = appTinyDB.getBoolean("areActionButtonsPositionsFixed");
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
             getWindow().getAttributes().layoutInDisplayCutoutMode =
@@ -276,78 +111,93 @@ public class MainActivity extends AppCompatActivity {
         fullScreenOn();
 
         rootContainer = findViewById(R.id.root_container);
-        linearLayout   = findViewById(R.id.linearLayout);
+        linearLayout = findViewById(R.id.linearLayout);
         floatingActionButton = findViewById(R.id.fab);
         floatingActionButton.setAlpha(0.5f);
-
         fabHideShow = findViewById(R.id.fab_hide_show);
+        fabHideShow.setAlpha(0.5f);
+
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        screenWidth = dm.widthPixels;
+        screenHeight = dm.heightPixels;
+
+        displayUtils = new DisplayUtils(this);
+        keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap);
+        actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, keyDispatcher, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
+        clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, this::getClientDisplayName, this::setTitle, this::getScreenHeight, this::getScreenWidth);
+        fabMovementHandler = new FabMovementHandler(screenWidth, screenHeight);
+
+        initializeKeyCodeMap();
+        setupFabTouchListeners();
+
+        List<Integer> storedClientIds = appTinyDB.getListInt("configuredClientIds");
+        if (storedClientIds != null && !storedClientIds.isEmpty()) {
+            configuredClientIds.addAll(storedClientIds);
+        } else {
+            configuredClientIds.addAll(clientManager.getExistingClientIdsFromFileSystem());
+        }
+
+        for (int clientId : configuredClientIds) {
+            actionButtonManager.loadActionButtonsState(clientId);
+        }
+
+        if (savedInstanceState == null) {
+            if (configuredClientIds.isEmpty()) {
+                clientManager.createNewClient();
+            } else {
+                int first = Collections.min(configuredClientIds);
+                clientManager.openClient(first);
+            }
+        } else {
+            activeClientId = savedInstanceState.getInt("activeClientId", -1);
+            clientManager.setActiveClientId(activeClientId);
+        }
+        actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId);
+    }
+
+    private void setupFabTouchListeners() {
+        fabMovementHandler.setupFabTouchListener(floatingActionButton,
+                v -> clientManager.switchToNextClient(),
+                v -> {
+                    showClientManagerMenu(v);
+                    return true;
+                });
+
         fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
         fabHideShow.setOnClickListener(v -> {
             isActionButtonsVisible = !isActionButtonsVisible;
             appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
-            refreshAllActionButtonsDisplay();
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId);
         });
 
         fabHideShow.setOnLongClickListener(v -> {
             areActionButtonsPositionsFixed = !areActionButtonsPositionsFixed;
             appTinyDB.putBoolean("areActionButtonsPositionsFixed", areActionButtonsPositionsFixed);
+            actionButtonManager.setActionButtonsPositionsFixed(areActionButtonsPositionsFixed);
             Toast.makeText(this, "Action Button positions " + (areActionButtonsPositionsFixed ? "fixed" : "draggable"), Toast.LENGTH_SHORT).show();
-            refreshAllActionButtonsDisplay(); // Re-apply draggability
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId);
             return true;
         });
 
-        // Load and set fabHideShow position after layout is complete
         fabHideShow.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
             @Override
             public void onGlobalLayout() {
                 fabHideShow.getViewTreeObserver().removeOnGlobalLayoutListener(this);
                 float fabHideShowX = appTinyDB.getFloat("fabHideShow_x");
                 float fabHideShowY = appTinyDB.getFloat("fabHideShow_y");
-                if (fabHideShowX != 0f || fabHideShowY != 0f) { // Only apply if a saved position exists
+                if (fabHideShowX != 0f || fabHideShowY != 0f) {
                     fabHideShow.setX(fabHideShowX);
                     fabHideShow.setY(fabHideShowY);
                 }
             }
         });
 
-        DisplayMetrics dm = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(dm);
-        screenWidth  = dm.widthPixels;
-        screenHeight = dm.heightPixels;
-
-        initializeKeyCodeMap();
-        setupFabTouchListener(floatingActionButton);
-        setupHideShowFabTouchListener(fabHideShow);
-
-        fabHideShow.setAlpha(0.5f);
-
-        List<Integer> storedClientIds = appTinyDB.getListInt("configuredClientIds");
-        if (storedClientIds != null && !storedClientIds.isEmpty()) {
-            configuredClientIds.addAll(storedClientIds);
-        } else {
-            configuredClientIds.addAll(getExistingClientIdsFromFileSystem());
-        }
-
-        // Load all action buttons for all configured clients at startup
-        for (int clientId : configuredClientIds) {
-            loadActionButtonsState(clientId);
-        }
-
-        if (savedInstanceState == null) {
-            if (configuredClientIds.isEmpty()) {
-                createNewClient();
-            } else {
-                int first = Collections.min(configuredClientIds);
-                if (webViews.get(first) == null) openClient(first);
-                else switchToClient(first);
-            }
-        }
-        refreshAllActionButtonsDisplay();
+        fabMovementHandler.setupDraggableFab(fabHideShow, this);
     }
 
-    /* ---------- WebView creation with .bin caching ---------- */
     @SuppressLint({"SetJavaScriptEnabled", "ClickableViewAccessibility"})
-    private void createWebViewer(WebView webView, FrameLayout frameLayout, int clientId, String initialUrl) {
+    public void createWebViewer(WebView webView, FrameLayout frameLayout, int clientId, String initialUrl) {
         webView.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT));
@@ -365,8 +215,6 @@ public class MainActivity extends AppCompatActivity {
 
             @Override public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
-
-                /* localStorage override */
                 view.evaluateJavascript(
                         "(function(){"
                         + "window.localStorage.setItem=function(k,v){AndroidLocalStorage.setItem(k,v)};"
@@ -374,8 +222,6 @@ public class MainActivity extends AppCompatActivity {
                         + "window.localStorage.removeItem=function(k){AndroidLocalStorage.removeItem(k)};"
                         + "window.localStorage.clear=function(){AndroidLocalStorage.clear()};"
                         + "})()", null);
-
-                /* .bin caching via IndexedDB */
                 view.evaluateJavascript(
                         "(function(){\n"
                         + "const BIN=/\\.bin$/i,IDB_NAME='flyff_bin_cache',STORE='blobs',VER=1;\n"
@@ -442,249 +288,47 @@ public class MainActivity extends AppCompatActivity {
         webView.requestFocus();
         webView.loadUrl(initialUrl);
 
-        // Add utility FABs for specific client IDs
-        if (clientId == WIKI_CLIENT_ID || clientId == MADRIGAL_CLIENT_ID || clientId == FLYFFULATOR_CLIENT_ID || clientId == FLYFFUSKILL_CLIENT_ID) {
-            int fabMargin = dpToPx(10);
-            int fabSize = dpToPx(40);
-
-            // Reload FAB
-            FloatingActionButton fabReload = new FloatingActionButton(this);
-            FrameLayout.LayoutParams reloadParams = new FrameLayout.LayoutParams(fabSize, fabSize);
-            reloadParams.gravity = Gravity.TOP | Gravity.END;
-            reloadParams.setMargins(0, fabMargin, fabMargin, 0);
-            fabReload.setLayoutParams(reloadParams);
-            fabReload.setImageResource(android.R.drawable.ic_menu_rotate);
-            fabReload.setAlpha(0.5f);
-            android.graphics.drawable.GradientDrawable circularBackgroundReload = new android.graphics.drawable.GradientDrawable();
-            circularBackgroundReload.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-            circularBackgroundReload.setColor(Color.WHITE);
-            fabReload.setBackground(circularBackgroundReload);
-            fabReload.setOnClickListener(v -> webView.reload());
-            frameLayout.addView(fabReload);
-
-            // Go Back FAB
-            FloatingActionButton fabBack = new FloatingActionButton(this);
-            FrameLayout.LayoutParams backParams = new FrameLayout.LayoutParams(fabSize, fabSize);
-            backParams.gravity = Gravity.TOP | Gravity.END;
-            backParams.setMargins(0, fabMargin + fabSize + fabMargin, fabMargin, 0); // Position below reload
-            fabBack.setLayoutParams(backParams);
-            fabBack.setImageResource(android.R.drawable.ic_media_previous);
-            fabBack.setAlpha(0.5f);
-            android.graphics.drawable.GradientDrawable circularBackgroundBack = new android.graphics.drawable.GradientDrawable();
-            circularBackgroundBack.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-            circularBackgroundBack.setColor(Color.WHITE);
-            fabBack.setBackground(circularBackgroundBack);
-            fabBack.setOnClickListener(v -> {
-                if (webView.canGoBack()) {
-                    webView.goBack();
-                }
-            });
-            frameLayout.addView(fabBack);
-
-            // Kill FAB
-            FloatingActionButton fabKill = new FloatingActionButton(this);
-            FrameLayout.LayoutParams killParams = new FrameLayout.LayoutParams(fabSize, fabSize);
-            killParams.gravity = Gravity.TOP | Gravity.END;
-            killParams.setMargins(0, fabMargin + (fabSize + fabMargin) * 2, fabMargin, 0); // Position below back
-            fabKill.setLayoutParams(killParams);
-            fabKill.setImageResource(android.R.drawable.ic_delete);
-            fabKill.setAlpha(0.5f);
-            android.graphics.drawable.GradientDrawable circularBackgroundKill = new android.graphics.drawable.GradientDrawable();
-            circularBackgroundKill.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-            circularBackgroundKill.setColor(Color.WHITE);
-            fabKill.setBackground(circularBackgroundKill);
-            fabKill.setOnClickListener(v -> confirmCloseUtilityClient(clientId));
-            frameLayout.addView(fabKill);
+        if (clientId == Constants.WIKI_CLIENT_ID || clientId == Constants.MADRIGAL_CLIENT_ID || clientId == Constants.FLYFFULATOR_CLIENT_ID || clientId == Constants.FLYFFUSKILL_CLIENT_ID) {
+            addUtilityFabs(frameLayout, webView, clientId);
         }
     }
 
-    /* ---------- rest of the file unchanged ---------- */
+    private void addUtilityFabs(FrameLayout frameLayout, WebView webView, int clientId) {
+        int fabMargin = displayUtils.dpToPx(10);
+        int fabSize = displayUtils.dpToPx(40);
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void setupFabTouchListener(View fab) {
-        longPressRunnable = () -> floatingActionButton.performLongClick();
-        floatingActionButton.setOnTouchListener((v, e) -> {
-            int X = (int) e.getRawX(), Y = (int) e.getRawY();
-            switch (e.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    downTime = e.getDownTime();
-                    initialRawX = e.getRawX();
-                    initialRawY = e.getRawY();
-                    _xDelta = X - (int) v.getX();
-                    _yDelta = Y - (int) v.getY();
-                    longPressHandler.postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout());
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    longPressHandler.removeCallbacks(longPressRunnable);
-                    long dur = e.getEventTime() - downTime;
-                    float dx = Math.abs(e.getRawX() - initialRawX);
-                    float dy = Math.abs(e.getRawY() - initialRawY);
-                    int slop = ViewConfiguration.get(v.getContext()).getScaledTouchSlop();
-                    if (dx < slop && dy < slop && dur < ViewConfiguration.getLongPressTimeout())
-                        v.performClick();
-                    else snapFabToEdge(v);
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    if (Math.abs(e.getRawX() - initialRawX) > ViewConfiguration.get(v.getContext()).getScaledTouchSlop()
-                            || Math.abs(e.getRawY() - initialRawY) > ViewConfiguration.get(v.getContext()).getScaledTouchSlop())
-                        longPressHandler.removeCallbacks(longPressRunnable);
-                    v.setX(X - _xDelta);
-                    v.setY(Y - _yDelta);
-                    return true;
+        FloatingActionButton fabReload = createUtilityFab(fabMargin, fabSize, Gravity.TOP | Gravity.END, 0, android.R.drawable.ic_menu_rotate);
+        fabReload.setOnClickListener(v -> webView.reload());
+        frameLayout.addView(fabReload);
+
+        FloatingActionButton fabBack = createUtilityFab(fabMargin, fabSize, Gravity.TOP | Gravity.END, fabMargin + fabSize + fabMargin, android.R.drawable.ic_media_previous);
+        fabBack.setOnClickListener(v -> {
+            if (webView.canGoBack()) {
+                webView.goBack();
             }
-            return false;
         });
-        floatingActionButton.setOnClickListener(v -> switchToNextClient());
-        floatingActionButton.setOnLongClickListener(v -> {
-            showClientManagerMenu(v);
-            return true;
-        });
+        frameLayout.addView(fabBack);
+
+        FloatingActionButton fabKill = createUtilityFab(fabMargin, fabSize, Gravity.TOP | Gravity.END, fabMargin + (fabSize + fabMargin) * 2, android.R.drawable.ic_delete);
+        fabKill.setOnClickListener(v -> clientManager.confirmCloseUtilityClient(clientId));
+        frameLayout.addView(fabKill);
     }
 
-    private void snapFabToEdge(View v) {
-        int w = v.getWidth();
-        int h = v.getHeight();
-        float x = v.getX();
-        float y = v.getY();
-
-        // Snap X to edge
-        if (x < -w / 2f) x = -w / 2f;
-        if (x > screenWidth - w / 2f) x = screenWidth - w / 2f;
-
-        // Snap Y to edge
-        if (y < -h / 2f) y = -h / 2f;
-        if (y > screenHeight - h / 2f) y = screenHeight - h / 2f;
-
-        ObjectAnimator.ofFloat(v, "x", x).setDuration(200).start();
-        ObjectAnimator.ofFloat(v, "y", y).setDuration(200).start();
+    private FloatingActionButton createUtilityFab(int margin, int size, int gravity, int topMargin, int imageResource) {
+        FloatingActionButton fab = new FloatingActionButton(this);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(size, size);
+        params.gravity = gravity;
+        params.setMargins(0, topMargin, margin, 0);
+        fab.setLayoutParams(params);
+        fab.setImageResource(imageResource);
+        fab.setAlpha(0.5f);
+        android.graphics.drawable.GradientDrawable circularBackground = new android.graphics.drawable.GradientDrawable();
+        circularBackground.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        circularBackground.setColor(Color.WHITE);
+        fab.setBackground(circularBackground);
+        return fab;
     }
 
-    /* ---------- client helper methods ---------- */
-
-    private void openClient(int id) {
-        if (webViews.get(id) != null) { switchToClient(id); return; }
-        if (webViews.size() >= MAX_CLIENTS) {
-            Toast.makeText(this, "Max clients open", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        FrameLayout fl = new FrameLayout(this);
-        fl.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        linearLayout.addView(fl);
-        layouts.put(id, fl);
-
-        WebView w = new CustomWebView(getApplicationContext());
-        createWebViewer(w, fl, id, url);
-        webViews.put(id, w);
-        switchToClient(id);
-        floatingActionButton.setVisibility(View.VISIBLE);
-        refreshAllActionButtonsDisplay();
-    }
-
-    private void switchToClient(int id) {
-        if (layouts.get(id) == null) {
-            if (webViews.size() > 0) switchToClient(webViews.keyAt(0));
-            else {
-                activeClientId = -1;
-                setTitle("FlyffU Android");
-                floatingActionButton.setVisibility(View.GONE);
-            }
-            return;
-        }
-        // Save state of previously active client before switching
-        if (activeClientId != -1 && activeClientId != id) {
-            saveActionButtonsState(activeClientId);
-        }
-
-        for (int i = 0; i < layouts.size(); i++) {
-            int k = layouts.keyAt(i);
-            layouts.get(k).setVisibility(k == id ? View.VISIBLE : View.GONE);
-        }
-        activeClientId = id;
-        loadClientState(activeClientId);
-        loadActionButtonsState(activeClientId);
-        setTitle(getClientDisplayName(id));
-        WebView w = webViews.get(id);
-        if (w != null) {
-            w.requestFocus();
-            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) imm.hideSoftInputFromWindow(w.getWindowToken(), 0);
-        }
-
-    }
-
-    private void switchToNextClient() {
-        if (webViews.size() > 1) {
-            List<Integer> ids = new ArrayList<>();
-            for (int i = 0; i < webViews.size(); i++) ids.add(webViews.keyAt(i));
-            Collections.sort(ids);
-            int idx = (ids.indexOf(activeClientId) + 1) % ids.size();
-            switchToClient(ids.get(idx));
-        }
-    }
-
-    private void killClient(int id) {
-        if (webViews.get(id) == null) return;
-        WebView w = webViews.get(id);
-        FrameLayout f = layouts.get(id);
-        f.removeAllViews();
-        w.destroy();
-        linearLayout.removeView(f);
-        webViews.remove(id);
-        layouts.remove(id);
-        Toast.makeText(this, getClientDisplayName(id) + " killed", Toast.LENGTH_SHORT).show();
-        if (webViews.size() == 0) {
-            activeClientId = -1;
-            setTitle("FlyffU Android");
-            floatingActionButton.setVisibility(View.GONE);
-        } else if (activeClientId == id) {
-            activeClientId = webViews.keyAt(0);
-            switchToClient(activeClientId);
-        }
-        refreshAllActionButtonsDisplay();
-    }
-
-    private void deleteClient(int id) {
-        if (webViews.get(id) != null) killClient(id);
-        configuredClientIds.remove(id);
-        appTinyDB.putListInt("configuredClientIds", new ArrayList<>(configuredClientIds));
-        TinyDB db = new TinyDB(this, "client_prefs_" + id);
-        db.clear();
-        File f = new File(getApplicationInfo().dataDir, "shared_prefs/client_prefs_" + id + ".xml");
-        if (f.exists()) f.delete();
-        Toast.makeText(this, "Client " + id + " deleted", Toast.LENGTH_SHORT).show();
-        if (configuredClientIds.isEmpty()) createNewClient();
-    }
-
-    private List<Integer> getExistingClientIdsFromFileSystem() {
-        List<Integer> ids = new ArrayList<>();
-        File dir = new File(getApplicationInfo().dataDir, "shared_prefs");
-        if (dir.exists() && dir.isDirectory()) {
-            Pattern p = Pattern.compile("client_prefs_(\\d+)\\.xml");
-            File[] fs = dir.listFiles();
-            if (fs != null)
-                for (File f : fs) {
-                    Matcher m = p.matcher(f.getName());
-                    if (m.matches()) try {
-                        ids.add(Integer.parseInt(m.group(1)));
-                    } catch (NumberFormatException ignore) {}
-                }
-        }
-        return ids;
-    }
-
-    private String getClientDisplayName(int id) {
-        if (id == WIKI_CLIENT_ID) return "Flyffipedia";
-        if (id == MADRIGAL_CLIENT_ID) return "Madrigal Inside";
-        if (id == FLYFFULATOR_CLIENT_ID) return "Flyffulator";
-        if (id == FLYFFUSKILL_CLIENT_ID) return "Flyff Skill Simulator";
-        TinyDB db = new TinyDB(this, "client_prefs_" + id);
-        String custom = db.getString(CLIENT_NAME_KEY);
-        return (custom != null && !custom.isEmpty()) ? custom : "Client " + id;
-    }
-
-    /* ---------- FAB long-press menu ---------- */
     private void showClientManagerMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add(Menu.NONE, 1, Menu.NONE, "New Client");
@@ -694,168 +338,58 @@ public class MainActivity extends AppCompatActivity {
         if (!sorted.isEmpty()) {
             SubMenu sub = popup.getMenu().addSubMenu(Menu.NONE, 2, Menu.NONE, "Clients");
             for (int id : sorted) {
-                SubMenu sm = sub.addSubMenu(getClientDisplayName(id));
+                SubMenu sm = sub.addSubMenu(clientManager.getClientDisplayName(id));
                 boolean open = webViews.get(id) != null;
                 if (open) {
-                    sm.add(Menu.NONE, 6000 + id, 0, "Action Buttons"); // Moved to first position with order 0
+                    sm.add(Menu.NONE, 6000 + id, 0, "Action Buttons");
                     sm.add(Menu.NONE, 1000 + id, 1, "Switch");
                     sm.add(Menu.NONE, 2000 + id, 2, "Kill");
-                } else sm.add(Menu.NONE, 3000 + id, 1, "Open");
+                } else {
+                    sm.add(Menu.NONE, 3000 + id, 1, "Open");
+                }
                 sm.add(Menu.NONE, 4000 + id, 3, "Rename");
                 sm.add(Menu.NONE, 5000 + id, 4, "Delete");
-
             }
         }
         SubMenu util = popup.getMenu().addSubMenu(Menu.NONE, 3, Menu.NONE, "Utils");
-        util.add(Menu.NONE, 7000 + Math.abs(WIKI_CLIENT_ID), Menu.NONE, "Flyffipedia");
-        util.add(Menu.NONE, 7000 + Math.abs(MADRIGAL_CLIENT_ID), Menu.NONE, "Madrigal Inside");
-        util.add(Menu.NONE, 7000 + Math.abs(FLYFFULATOR_CLIENT_ID), Menu.NONE, "Flyffulator");
-        util.add(Menu.NONE, 7000 + Math.abs(FLYFFUSKILL_CLIENT_ID), Menu.NONE, "Flyff Skill Simulator");
-
+        util.add(Menu.NONE, 7000 + Math.abs(Constants.WIKI_CLIENT_ID), Menu.NONE, "Flyffipedia");
+        util.add(Menu.NONE, 7000 + Math.abs(Constants.MADRIGAL_CLIENT_ID), Menu.NONE, "Madrigal Inside");
+        util.add(Menu.NONE, 7000 + Math.abs(Constants.FLYFFULATOR_CLIENT_ID), Menu.NONE, "Flyffulator");
+        util.add(Menu.NONE, 7000 + Math.abs(Constants.FLYFFUSKILL_CLIENT_ID), Menu.NONE, "Flyff Skill Simulator");
 
         popup.setOnMenuItemClickListener(item -> {
-            int id = -1, itemId = item.getItemId();
-            if (itemId > 1000) {
-                if (itemId < 2000) id = itemId - 1000;
-                else if (itemId < 3000) id = itemId - 2000;
-                else if (itemId < 4000) id = itemId - 3000;
-                else if (itemId < 5000) id = itemId - 4000;
-                else if (itemId < 6000) id = itemId - 5000;
-                else if (itemId < 7000) id = itemId - 6000;
-                else if (itemId < 8000) id = -(itemId - 7000);
-            }
-            if (itemId == 1) createNewClient();
-            else if (id != -1) {
-                if (itemId >= 1000 && itemId < 2000) switchToClient(id);
-                else if (itemId >= 2000 && itemId < 3000) confirmKillClient(id);
-                else if (itemId >= 3000 && itemId < 4000) openClient(id);
-                else if (itemId >= 4000 && itemId < 5000) showRenameDialog(id);
-                else if (itemId >= 5000 && itemId < 6000) confirmDeleteClient(id);
-                else if (itemId >= 6000 && itemId < 7000) {
-                    if (webViews.get(id) == null) {
-                        openClient(id);
-                    } else {
-                        switchToClient(id);
-                    }
-                    showActionButtonsMenu();
-                }
-                else if (itemId >= 7000 && itemId < 8000) openUtilityClient(id);
-            }
+            handleMenuClick(item);
             return true;
         });
         popup.show();
     }
 
-    private void createNewClient() {
-        List<Integer> open = new ArrayList<>();
-        for (int i = 0; i < webViews.size(); i++) open.add(webViews.keyAt(i));
-        for (int id : configuredClientIds) {
-            if (!open.contains(id)) {
-                if (webViews.size() >= MAX_CLIENTS) {
-                    Toast.makeText(this, "Max open clients reached", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                openClient(id);
-                Toast.makeText(this, getClientDisplayName(id) + " opened", Toast.LENGTH_SHORT).show();
-                return;
-            }
+    private void handleMenuClick(MenuItem item) {
+        int itemId = item.getItemId();
+        int id = -1;
+
+        if (itemId > 1000) {
+            if (itemId < 2000) id = itemId - 1000;
+            else if (itemId < 3000) id = itemId - 2000;
+            else if (itemId < 4000) id = itemId - 3000;
+            else if (itemId < 5000) id = itemId - 4000;
+            else if (itemId < 6000) id = itemId - 5000;
+            else if (itemId < 7000) id = itemId - 6000;
+            else if (itemId < 8000) id = -(itemId - 7000);
         }
-        if (webViews.size() >= MAX_CLIENTS) {
-            Toast.makeText(this, "Max clients reached", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        int newId = 1;
-        while (configuredClientIds.contains(newId) && newId <= MAX_CLIENTS) newId++;
-        if (newId > MAX_CLIENTS) {
-            Toast.makeText(this, "No free slot", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        configuredClientIds.add(newId);
-        openClient(newId);
-        Toast.makeText(this, "Client " + newId + " created", Toast.LENGTH_SHORT).show();
-    }
 
-    private void openUtilityClient(int id) {
-        String u;
-        switch (id) {
-            case WIKI_CLIENT_ID: u = WIKI_URL; break;
-            case MADRIGAL_CLIENT_ID: u = MADRIGAL_URL; break;
-            case FLYFFULATOR_CLIENT_ID: u = FLYFFULATOR_URL; break;
-            case FLYFFUSKILL_CLIENT_ID: u = FLYFFUSKILL_URL; break;
-
-            default: return;
-        }
-        if (webViews.get(id) != null) {
-            if (activeClientId == id) confirmCloseUtilityClient(id);
-            else switchToClient(id);
-            return;
-        }
-        if (webViews.size() >= MAX_CLIENTS) {
-            Toast.makeText(this, "Max clients reached", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        FrameLayout fl = new FrameLayout(this);
-        fl.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT));
-        linearLayout.addView(fl);
-        layouts.put(id, fl);
-
-        WebView w = new CustomWebView(getApplicationContext());
-        createWebViewer(w, fl, id, u);
-        webViews.put(id, w);
-        switchToClient(id);
-        floatingActionButton.setVisibility(View.VISIBLE);
-        Toast.makeText(this, getClientDisplayName(id) + " opened", Toast.LENGTH_SHORT).show();
-    }
-
-    private void confirmKillClient(int id) {
-        new AlertDialog.Builder(this)
-                .setCancelable(false)
-                .setTitle("Kill?")
-                .setMessage("Kill " + getClientDisplayName(id) + "?")
-                .setPositiveButton("Yes", (d, w) -> killClient(id))
-                .setNegativeButton("No", null)
-                .show();
-    }
-
-    private void confirmDeleteClient(int id) {
-        new AlertDialog.Builder(this)
-                .setCancelable(false)
-                .setTitle("Delete?")
-                .setMessage("Delete " + getClientDisplayName(id) + "? This is permanent.")
-                .setPositiveButton("Yes", (d, w) -> deleteClient(id))
-                .setNegativeButton("No", null)
-                .show();
-    }
-
-    private void confirmCloseUtilityClient(int id) {
-        new AlertDialog.Builder(this)
-                .setCancelable(false)
-                .setTitle("Close?")
-                .setMessage("Close " + getClientDisplayName(id) + "?")
-                .setPositiveButton("Yes", (d, w) -> closeUtilityClient(id))
-                .setNegativeButton("No", null)
-                .show();
-    }
-
-    private void closeUtilityClient(int id) {
-        if (webViews.get(id) == null) return;
-        WebView w = webViews.get(id);
-        FrameLayout f = layouts.get(id);
-        f.removeAllViews();
-        w.destroy();
-        linearLayout.removeView(f);
-        webViews.remove(id);
-        layouts.remove(id);
-        Toast.makeText(this, getClientDisplayName(id) + " closed", Toast.LENGTH_SHORT).show();
-        if (webViews.size() == 0) {
-            activeClientId = -1;
-            setTitle("FlyffU Android");
-            floatingActionButton.setVisibility(View.GONE);
-        } else {
-            activeClientId = webViews.keyAt(0);
-            switchToClient(activeClientId);
+        if (itemId == 1) {
+            clientManager.createNewClient();
+        } else if (id != -1) {
+            if (itemId >= 1000 && itemId < 2000) clientManager.switchToClient(id);
+            else if (itemId >= 2000 && itemId < 3000) clientManager.confirmKillClient(id);
+            else if (itemId >= 3000 && itemId < 4000) clientManager.openClient(id);
+            else if (itemId >= 4000 && itemId < 5000) showRenameDialog(id);
+            else if (itemId >= 5000 && itemId < 6000) clientManager.confirmDeleteClient(id);
+            else if (itemId >= 6000 && itemId < 7000) {
+                clientManager.switchToClient(id);
+                showActionButtonsMenu();
+            } else if (itemId >= 7000 && itemId < 8000) clientManager.openUtilityClient(id);
         }
     }
 
@@ -864,31 +398,21 @@ public class MainActivity extends AppCompatActivity {
         b.setTitle("Rename Client");
         EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT);
-        input.setText(getClientDisplayName(id));
+        input.setText(clientManager.getClientDisplayName(id));
         b.setView(input);
         b.setPositiveButton("Save", (d, w) -> {
             String n = input.getText().toString().trim();
             if (!n.isEmpty()) {
                 TinyDB db = new TinyDB(this, "client_prefs_" + id);
-                db.putString(CLIENT_NAME_KEY, n);
+                db.putString(Constants.CLIENT_NAME_KEY, n);
                 Toast.makeText(this, "Renamed to " + n, Toast.LENGTH_SHORT).show();
-                if (activeClientId == id) setTitle(n);
-            } else Toast.makeText(this, "Empty name", Toast.LENGTH_SHORT).show();
+                if (clientManager.getActiveClientId() == id) setTitle(n);
+            } else {
+                Toast.makeText(this, "Empty name", Toast.LENGTH_SHORT).show();
+            }
         });
         b.setNegativeButton("Cancel", null);
         b.show();
-    }
-
-    /* ---------- Action Buttons methods ---------- */
-
-    private void initializeKeyCodeMap() {
-        for (int i = 0; i < 12; i++) {
-            keyCodeMap.put("F" + (i + 1), KeyEvent.KEYCODE_F1 + i);
-        }
-        // Add other keys as needed
-        keyCodeMap.put("A", KeyEvent.KEYCODE_A);
-        keyCodeMap.put("B", KeyEvent.KEYCODE_B);
-        // ... and so on
     }
 
     private void showActionButtonsMenu() {
@@ -900,9 +424,9 @@ public class MainActivity extends AppCompatActivity {
             if (selectedOption.equals("New")) {
                 showKeyTypeDialog();
             } else if (selectedOption.equals("Color")) {
-                showColorSelectionDialog(activeClientId);
+                showColorSelectionDialog(clientManager.getActiveClientId());
             } else if (selectedOption.equals("Delete")) {
-                showDeleteActionButtonDialog(activeClientId);
+                showDeleteActionButtonDialog(clientManager.getActiveClientId());
             }
         });
         builder.show();
@@ -926,138 +450,15 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    private void showColorSelectionDialog(int clientId) {
-        List<ActionButtonData> clientButtons = clientActionButtonsData.get(clientId);
-        if (clientButtons == null || clientButtons.isEmpty()) {
-            Toast.makeText(this, "No action buttons for this client to color.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        final CharSequence[] buttonLabels = Stream.concat(Stream.of("All buttons"), clientButtons.stream()
-                .map(data -> data.keyText))
-                .toArray(CharSequence[]::new);
-
+    private void showFunctionKeyOptionsDialog() {
+        final CharSequence[] items = {"Single Button (change active bar)", "Combo Button"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Button to Color");
-        builder.setItems(buttonLabels, (dialog, whichButton) -> {
-            String selectedKeyText = buttonLabels[whichButton].toString();
-            if (selectedKeyText.equals("All buttons")) {
-                final CharSequence[] colorNames = {"Red", "Green", "Blue", "Black", "White", "Gray"};
-                final int[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.BLACK, Color.WHITE, Color.GRAY};
-
-                AlertDialog.Builder colorBuilder = new AlertDialog.Builder(this);
-                colorBuilder.setTitle("Select Color for All Buttons");
-                colorBuilder.setItems(colorNames, (colorDialog, whichColor) -> {
-                    int newColor = colors[whichColor];
-                    for (ActionButtonData data : clientButtons) {
-                        data.color = newColor;
-                        // Find the corresponding FAB view and update its color
-                        for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                            if (entry.getValue().keyText.equals(data.keyText) && entry.getValue().clientId == data.clientId) {
-                                android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) entry.getKey().getBackground();
-                                if (background != null) {
-                                    background.setColor(newColor);
-                                }
-                                break;
-                            }
-                        }
-                    }
-                    Toast.makeText(this, "All buttons colored " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
-                    saveActionButtonsState(clientId); // Save state after color change
-                });
-                dialog.dismiss(); // Dismiss the first dialog
-                colorBuilder.show();
-            } else {
-                // The user selected a specific button. The index in the dialog is `whichButton`.
-                // Since "All buttons" is at index 0, the index in our `clientButtons` list is `whichButton - 1`.
-                int buttonIndex = whichButton - 1;
-                if (buttonIndex < 0 || buttonIndex >= clientButtons.size()) {
-                    // Should not happen, but as a safeguard.
-                    return;
-                }
-
-                final ActionButtonData selectedButtonData = clientButtons.get(buttonIndex);
-
-                // Find the corresponding view to update its color live.
-                View selectedFabView = null;
-                for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                    if (entry.getValue().equals(selectedButtonData)) { // Compare by object content
-                        selectedFabView = entry.getKey();
-                        break;
-                    }
-                }
-
-                if (selectedFabView != null) {
-                    final View finalSelectedFabView = selectedFabView;
-                    final CharSequence[] colorNames = {"Red", "Green", "Blue", "Black", "White", "Gray"};
-                    final int[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.BLACK, Color.WHITE, Color.GRAY};
-
-                    AlertDialog.Builder colorBuilder = new AlertDialog.Builder(this);
-                    colorBuilder.setTitle("Select Color for " + selectedButtonData.keyText);
-                    colorBuilder.setItems(colorNames, (colorDialog, whichColor) -> {
-                        int newColor = colors[whichColor];
-                        selectedButtonData.color = newColor;
-
-                        // Update the background color of the existing FAB view
-                        android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) finalSelectedFabView.getBackground();
-                        if (background != null) {
-                            background.setColor(newColor);
-                        }
-                        Toast.makeText(this, selectedButtonData.keyText + " color changed to " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
-                        saveActionButtonsState(clientId); // Save state after color change
-                    });
-                    dialog.dismiss(); // Dismiss the first dialog
-                    colorBuilder.show();
-                }
-            }
-        });
-        builder.show();
-    }
-
-    private void showDeleteActionButtonDialog(int clientId) {
-        List<ActionButtonData> clientButtons = clientActionButtonsData.get(clientId);
-        if (clientButtons == null || clientButtons.isEmpty()) {
-            Toast.makeText(this, "No action buttons for this client to delete.", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        final CharSequence[] buttonLabels = clientButtons.stream()
-                .map(data -> data.keyText)
-                .toArray(CharSequence[]::new);
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Button to Delete");
-        builder.setItems(buttonLabels, (dialog, whichButton) -> {
-            String selectedKeyText = buttonLabels[whichButton].toString();
-
-            // Find the ActionButtonData object and its corresponding View
-            ActionButtonData dataToRemove = null;
-            for (ActionButtonData data : clientButtons) {
-                if (data.keyText.equals(selectedKeyText)) {
-                    dataToRemove = data;
-                    break;
-                }
-            }
-
-            if (dataToRemove != null) {
-                // Find the view associated with the data to remove it from the layout
-                View fabViewToRemove = null;
-                for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-                    if (entry.getValue().equals(dataToRemove)) {
-                        fabViewToRemove = entry.getKey();
-                        break;
-                    }
-                }
-
-                if (fabViewToRemove != null) {
-                    rootContainer.removeView(fabViewToRemove);
-                    fabViewToActionDataMap.remove(fabViewToRemove);
-                }
-
-                clientButtons.remove(dataToRemove);
-                saveActionButtonsState(clientId);
-                refreshAllActionButtonsDisplay();
-                Toast.makeText(this, selectedKeyText + " Action Button deleted.", Toast.LENGTH_SHORT).show();
+        builder.setTitle("Select Function Key Type");
+        builder.setItems(items, (dialog, item) -> {
+            if (items[item].equals("Single Button (change active bar)")) {
+                showFunctionKeyDialog();
+            } else if (items[item].equals("Combo Button")) {
+                showComboButtonDialog();
             }
         });
         builder.show();
@@ -1072,29 +473,14 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Select Function Key");
         builder.setItems(fKeys, (dialog, item) -> {
             String key = fKeys[item].toString();
-            // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-            ActionButtonData newButtonData = new ActionButtonData(key, (int)keyCodeMap.get(key), centerX, centerY, Color.BLACK, activeClientId);
-            createCustomFab(newButtonData);
-            saveActionButtonsState(activeClientId);
-            isActionButtonsVisible = true; // Ensure new button is visible
-            refreshAllActionButtonsDisplay();
+            ActionButtonData newButtonData = new ActionButtonData(key, (int) keyCodeMap.get(key), centerX, centerY, Color.BLACK, clientManager.getActiveClientId());
+            actionButtonManager.createCustomFab(newButtonData);
+            actionButtonManager.saveActionButtonsState(clientManager.getActiveClientId());
+            isActionButtonsVisible = true;
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientManager.getActiveClientId());
             Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
-        });
-        builder.show();
-    }
-
-    private void showFunctionKeyOptionsDialog() {
-        final CharSequence[] items = {"Single Button (change active bar)", "Combo Button"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Function Key Type");
-        builder.setItems(items, (dialog, item) -> {
-            if (items[item].equals("Single Button (change active bar)")) {
-                showFunctionKeyDialog();
-            } else if (items[item].equals("Combo Button")) {
-                showComboButtonDialog();
-            }
         });
         builder.show();
     }
@@ -1112,7 +498,6 @@ public class MainActivity extends AppCompatActivity {
             fKeys[i] = "F" + (i + 1);
         }
 
-        // Main Function Key Spinner
         TextView mainKeyLabel = new TextView(this);
         mainKeyLabel.setText("Select Main Function Key:");
         layout.addView(mainKeyLabel);
@@ -1122,14 +507,12 @@ public class MainActivity extends AppCompatActivity {
         mainKeySpinner.setAdapter(mainKeyAdapter);
         layout.addView(mainKeySpinner);
 
-        // Digit Key Input
         final EditText digitInput = new EditText(this);
         digitInput.setHint("Enter Digit Key (0-9)");
         digitInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-        digitInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+        digitInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
         layout.addView(digitInput);
 
-        // After Pressed Go To Bar Spinner
         TextView afterPressedLabel = new TextView(this);
         afterPressedLabel.setText("After Pressed Go To Bar:");
         layout.addView(afterPressedLabel);
@@ -1159,23 +542,18 @@ public class MainActivity extends AppCompatActivity {
             int afterPressedKeyCode = keyCodeMap.get(afterPressedKeyText);
 
             String keyText = mainKeyText + "+" + digitKeyText + "->" + afterPressedKeyText;
-
-            // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
 
             ActionButtonData newButtonData = new ActionButtonData(
-                    keyText, // Display text for the button
-                    0, // keyCode is not directly used for combo, set to 0
-                    centerX, centerY, Color.BLACK, activeClientId,
-                    ActionButtonData.TYPE_COMBO, // Set macroType to COMBO
-                    null, 0.0f, 0, 0.0f, false, false, false, // Macro and timed repeat fields not used
-                    mainKeyCode, digitKeyCode, afterPressedKeyCode // Combo specific fields
+                    keyText, 0, centerX, centerY, Color.BLACK, clientManager.getActiveClientId(),
+                    ActionButtonData.TYPE_COMBO, null, 0.0f, 0, 0.0f, false, false, false,
+                    mainKeyCode, digitKeyCode, afterPressedKeyCode
             );
-            createCustomFab(newButtonData);
-            saveActionButtonsState(activeClientId);
-            isActionButtonsVisible = true; // Ensure new button is visible
-            refreshAllActionButtonsDisplay();
+            actionButtonManager.createCustomFab(newButtonData);
+            actionButtonManager.saveActionButtonsState(clientManager.getActiveClientId());
+            isActionButtonsVisible = true;
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientManager.getActiveClientId());
             Toast.makeText(this, "Combo Button '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1206,10 +584,10 @@ public class MainActivity extends AppCompatActivity {
             if (isChecked) {
                 ctrlCheckBox.setChecked(false);
                 input.setInputType(InputType.TYPE_CLASS_NUMBER);
-                input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+                input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
             } else if (!ctrlCheckBox.isChecked()) {
                 input.setInputType(InputType.TYPE_CLASS_TEXT);
-                input.setFilters(new InputFilter[] {});
+                input.setFilters(new InputFilter[]{});
             }
         });
 
@@ -1217,10 +595,10 @@ public class MainActivity extends AppCompatActivity {
             if (isChecked) {
                 altCheckBox.setChecked(false);
                 input.setInputType(InputType.TYPE_CLASS_NUMBER);
-                input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
+                input.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
             } else if (!altCheckBox.isChecked()) {
                 input.setInputType(InputType.TYPE_CLASS_TEXT);
-                input.setFilters(new InputFilter[] {});
+                input.setFilters(new InputFilter[]{});
             }
         });
 
@@ -1230,43 +608,42 @@ public class MainActivity extends AppCompatActivity {
             boolean isAlt = altCheckBox.isChecked();
             boolean isCtrl = ctrlCheckBox.isChecked();
 
+            if (key.isEmpty()) {
+                Toast.makeText(this, "Key cannot be empty", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int keyCode;
             if (isAlt || isCtrl) {
                 if (key.length() == 1 && Character.isDigit(key.charAt(0))) {
-                    int keyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + key);
+                    keyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + key);
                     if (keyCode == KeyEvent.KEYCODE_UNKNOWN) {
                         keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
                     }
-                    // Calculate center position
-                    float centerX = screenWidth / 2f;
-                    float centerY = screenHeight / 2f;
-                    ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, isAlt, isCtrl);
-                    createCustomFab(newButtonData);
-                    saveActionButtonsState(activeClientId);
-                    isActionButtonsVisible = true; // Ensure new button is visible
-                    refreshAllActionButtonsDisplay();
-                    Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
                 } else {
                     Toast.makeText(this, "Please enter a single digit (0-9) when Alt or Ctrl is selected", Toast.LENGTH_SHORT).show();
+                    return;
                 }
-            } else { // No modifier selected, allow any single character
+            } else {
                 if (key.length() == 1) {
-                    int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
-                    if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                        // Calculate center position
-                        float centerX = screenWidth / 2f;
-                        float centerY = screenHeight / 2f;
-                        ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, false, false);
-                        createCustomFab(newButtonData);
-                        saveActionButtonsState(activeClientId);
-                        isActionButtonsVisible = true; // Ensure new button is visible
-                        refreshAllActionButtonsDisplay();
-                        Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
-                    }
+                    keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
                 } else {
                     Toast.makeText(this, "Please enter a single character", Toast.LENGTH_SHORT).show();
+                    return;
                 }
+            }
+
+            if (keyCode != KeyEvent.KEYCODE_UNKNOWN) {
+                float centerX = screenWidth / 2f;
+                float centerY = screenHeight / 2f;
+                ActionButtonData newButtonData = new ActionButtonData(key, keyCode, centerX, centerY, Color.BLACK, clientManager.getActiveClientId(), ActionButtonData.TYPE_NORMAL, null, 0.0f, 0, 0.0f, false, isAlt, isCtrl);
+                actionButtonManager.createCustomFab(newButtonData);
+                actionButtonManager.saveActionButtonsState(clientManager.getActiveClientId());
+                isActionButtonsVisible = true;
+                actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientManager.getActiveClientId());
+                Toast.makeText(this, "Action Button for '" + newButtonData.keyText + "' created.", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
             }
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1284,7 +661,7 @@ public class MainActivity extends AppCompatActivity {
         final EditText nameInput = new EditText(this);
         nameInput.setHint("Macro Name (max 2 letters)");
         nameInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        nameInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(2)});
+        nameInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(2)});
         layout.addView(nameInput);
 
         final EditText keysInput = new EditText(this);
@@ -1303,22 +680,12 @@ public class MainActivity extends AppCompatActivity {
         altCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 ctrlCheckBox.setChecked(false);
-                keysInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-                keysInput.setFilters(new InputFilter[] {new InputFilterMinMax("0", "9")});
-            } else if (!ctrlCheckBox.isChecked()) {
-                keysInput.setInputType(InputType.TYPE_CLASS_TEXT);
-                keysInput.setFilters(new InputFilter[] {});
             }
         });
 
         ctrlCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 altCheckBox.setChecked(false);
-                keysInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-                keysInput.setFilters(new InputFilter[] {new InputFilterMinMax("0", "9")});
-            } else if (!altCheckBox.isChecked()) {
-                keysInput.setInputType(InputType.TYPE_CLASS_TEXT);
-                keysInput.setFilters(new InputFilter[] {});
             }
         });
 
@@ -1327,20 +694,16 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(delayLabel);
 
         SeekBar delaySlider = new SeekBar(this);
-        delaySlider.setMax(45); // 0.5s to 5s, step 0.1s (45 steps)
-        delaySlider.setProgress(0); // Start at 0.5s
+        delaySlider.setMax(45);
+        delaySlider.setProgress(0);
         delaySlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 float delay = 0.5f + progress * 0.1f;
                 delayLabel.setText("Delay between keys: " + new DecimalFormat("0.0").format(delay) + "s");
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
         layout.addView(delaySlider);
 
@@ -1357,30 +720,14 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Name and keys cannot be empty", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (name.length() > 2) {
-                Toast.makeText(this, "Name must be max 2 letters", Toast.LENGTH_SHORT).show();
-                return;
-            }
 
-            if (isAlt || isCtrl) {
-                String[] individualKeys = keys.split(",");
-                for (String k : individualKeys) {
-                    if (k.length() != 1 || !Character.isDigit(k.charAt(0))) {
-                        Toast.makeText(this, "When Alt or Ctrl is selected, keys must be single digits (0-9) separated by commas", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                }
-            }
-
-            // Default position (0,0) and black color
-            // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false, isAlt, isCtrl);
-            createCustomFab(newButtonData);
-            saveActionButtonsState(activeClientId);
-            isActionButtonsVisible = true; // Ensure new button is visible
-            refreshAllActionButtonsDisplay();
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, clientManager.getActiveClientId(), ActionButtonData.TYPE_MACRO, keys, delay, 0, 0.0f, false, isAlt, isCtrl);
+            actionButtonManager.createCustomFab(newButtonData);
+            actionButtonManager.saveActionButtonsState(clientManager.getActiveClientId());
+            isActionButtonsVisible = true;
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientManager.getActiveClientId());
             Toast.makeText(this, "Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
@@ -1398,13 +745,13 @@ public class MainActivity extends AppCompatActivity {
         final EditText nameInput = new EditText(this);
         nameInput.setHint("Macro Name (max 2 letters)");
         nameInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        nameInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(2)});
+        nameInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(2)});
         layout.addView(nameInput);
 
         final EditText keyInput = new EditText(this);
         keyInput.setHint("Single Key (e.g., 1)");
         keyInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
+        keyInput.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1)});
         layout.addView(keyInput);
 
         final CheckBox altCheckBox = new CheckBox(this);
@@ -1418,22 +765,12 @@ public class MainActivity extends AppCompatActivity {
         altCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 ctrlCheckBox.setChecked(false);
-                keyInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
-            } else if (!ctrlCheckBox.isChecked()) {
-                keyInput.setInputType(InputType.TYPE_CLASS_TEXT);
-                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
             }
         });
 
         ctrlCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (isChecked) {
                 altCheckBox.setChecked(false);
-                keyInput.setInputType(InputType.TYPE_CLASS_NUMBER);
-                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1), new InputFilterMinMax("0", "9")});
-            } else if (!altCheckBox.isChecked()) {
-                keyInput.setInputType(InputType.TYPE_CLASS_TEXT);
-                keyInput.setFilters(new InputFilter[] {new InputFilter.LengthFilter(1)});
             }
         });
 
@@ -1442,20 +779,16 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(intervalLabel);
 
         SeekBar intervalSlider = new SeekBar(this);
-        intervalSlider.setMax(195); // 0.5s to 20s, step 0.1s (195 steps)
-        intervalSlider.setProgress(0); // Start at 0.5s
+        intervalSlider.setMax(195);
+        intervalSlider.setProgress(0);
         intervalSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 float interval = 0.5f + progress * 0.1f;
                 intervalLabel.setText("Repeat Interval: " + new DecimalFormat("0.0").format(interval) + "s");
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
         layout.addView(intervalSlider);
 
@@ -1472,483 +805,122 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Name and key cannot be empty", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (name.length() > 2) {
-                Toast.makeText(this, "Name must be max 2 letters", Toast.LENGTH_SHORT).show();
+
+            int repeatKeyCode;
+            if (key.length() == 1) {
+                repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key.toUpperCase());
+            } else {
+                Toast.makeText(this, "Key must be a single character", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            int repeatKeyCode;
-            if (isAlt || isCtrl) {
-                if (key.length() == 1 && Character.isDigit(key.charAt(0))) {
-                    repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_NUMPAD_" + key);
-                    if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
-                        repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key);
-                    }
-                } else {
-                    Toast.makeText(this, "Please enter a single digit (0-9) when Alt or Ctrl is selected", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-            } else {
-                if (key.length() != 1) {
-                    Toast.makeText(this, "Key must be a single character", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                repeatKeyCode = KeyEvent.keyCodeFromString("KEYCODE_" + key.toUpperCase());
-                if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
-                    Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+            if (repeatKeyCode == KeyEvent.KEYCODE_UNKNOWN) {
+                Toast.makeText(this, "Invalid key", Toast.LENGTH_SHORT).show();
+                return;
             }
 
-            // Default position (0,0) and black color
-            // Calculate center position
             float centerX = screenWidth / 2f;
             float centerY = screenHeight / 2f;
-            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, activeClientId, ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false, isAlt, isCtrl);
-            createCustomFab(newButtonData);
-            saveActionButtonsState(activeClientId);
-            isActionButtonsVisible = true; // Ensure new button is visible
-            refreshAllActionButtonsDisplay();
+            ActionButtonData newButtonData = new ActionButtonData(name, 0, centerX, centerY, Color.BLACK, clientManager.getActiveClientId(), ActionButtonData.TYPE_TIMED_REPEAT_MACRO, null, 0.0f, repeatKeyCode, interval, false, isAlt, isCtrl);
+            actionButtonManager.createCustomFab(newButtonData);
+            actionButtonManager.saveActionButtonsState(clientManager.getActiveClientId());
+            isActionButtonsVisible = true;
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientManager.getActiveClientId());
             Toast.makeText(this, "Timed Repeat Macro Button '" + name + "' created.", Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
         builder.show();
     }
 
-    private FrameLayout createCustomFab(ActionButtonData buttonData) {
-        // Create a FrameLayout to hold the FAB and the TextView
-        FrameLayout fabContainer = new FrameLayout(this);
-        int fabSizePx = dpToPx(40); // Adjusted size for action buttons
-        FrameLayout.LayoutParams containerParams = new FrameLayout.LayoutParams(fabSizePx, fabSizePx);
-        // Set initial position from buttonData
-        containerParams.leftMargin = (int) buttonData.x;
-        containerParams.topMargin = (int) buttonData.y;
-        fabContainer.setLayoutParams(containerParams);
-        fabContainer.setAlpha(0.5f); // Set transparency
-
-        // Programmatically create circular background with specified color
-        android.graphics.drawable.GradientDrawable circularBackground = new android.graphics.drawable.GradientDrawable();
-        circularBackground.setShape(android.graphics.drawable.GradientDrawable.OVAL);
-        if (buttonData.macroType == ActionButtonData.TYPE_TIMED_REPEAT_MACRO && buttonData.isToggleOn) {
-            circularBackground.setColor(Color.CYAN);
-        } else {
-            circularBackground.setColor(buttonData.color); // Use color from buttonData
+    private void showColorSelectionDialog(int clientId) {
+        List<ActionButtonData> clientButtons = clientActionButtonsData.get(clientId);
+        if (clientButtons == null || clientButtons.isEmpty()) {
+            Toast.makeText(this, "No action buttons for this client to color.", Toast.LENGTH_SHORT).show();
+            return;
         }
-        fabContainer.setBackground(circularBackground); // Set circular background directly on container
-        fabContainer.setElevation(0f); // Remove shadow
 
-        // Create the TextView for the label
-        TextView label = new TextView(this);
-        FrameLayout.LayoutParams labelParams = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-        );
-        labelParams.gravity = Gravity.CENTER; // Center the text within the button
-        label.setLayoutParams(labelParams);
-        label.setText(buttonData.keyText); // Use keyText from buttonData
-        label.setTextColor(Color.WHITE);
-        label.setTextSize(12); // Reduced text size for better fit
-        label.setClickable(false); // Ensure TextView does not consume clicks
-        label.setFocusable(false); // Ensure TextView does not consume focus
+        final CharSequence[] buttonLabels = Stream.concat(Stream.of("All buttons"), clientButtons.stream()
+                .map(data -> data.keyText))
+                .toArray(CharSequence[]::new);
 
-        // Add TextView to the container (only child)
-        fabContainer.addView(label);
-
-        // Set the click listener on the container
-        fabContainer.setOnClickListener(v -> {
-            WebView targetWebView = webViews.get(buttonData.clientId);
-            if (targetWebView != null) {
-                dispatchKeyEvent(targetWebView, buttonData);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Button to Color");
+        builder.setItems(buttonLabels, (dialog, whichButton) -> {
+            if (whichButton == 0) { // "All buttons"
+                showColorPickerForMultipleButtons(clientId, buttons);
             } else {
-                Toast.makeText(this, "Client " + getClientDisplayName(buttonData.clientId) + " is not active.", Toast.LENGTH_SHORT).show();
+                showColorPickerForSingleButton(clientId, clientButtons.get(whichButton - 1));
             }
         });
-
-        // Add the container to the root view and the map
-        rootContainer.addView(fabContainer);
-        fabViewToActionDataMap.put(fabContainer, buttonData);
-
-        // Ensure clientActionButtonsData is updated for this button's client
-        List<ActionButtonData> clientSpecificButtons = clientActionButtonsData.get(buttonData.clientId);
-        if (clientSpecificButtons == null) {
-            clientSpecificButtons = new ArrayList<>();
-            clientActionButtonsData.put(buttonData.clientId, clientSpecificButtons);
-        }
-
-        // Check if this button (by keyText and keyCode) already exists in the client's list
-        // If it exists, update its data. Otherwise, add it.
-        boolean buttonExistsInClientList = false;
-        for (int i = 0; i < clientSpecificButtons.size(); i++) {
-            ActionButtonData existingData = clientSpecificButtons.get(i);
-            if (existingData.keyText.equals(buttonData.keyText) && existingData.keyCode == buttonData.keyCode) {
-                clientSpecificButtons.set(i, buttonData); // Update existing data
-                buttonExistsInClientList = true;
-                break;
-            }
-        }
-        if (!buttonExistsInClientList) {
-            clientSpecificButtons.add(buttonData); // Add new button data
-        }
-
-        // Make the entire container draggable
-        if (!areActionButtonsPositionsFixed) {
-            makeFabDraggable(fabContainer);
-        }
-
-        return fabContainer;
+        builder.show();
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void makeFabDraggable(View view) {
-        final float[] xDelta = new float[1];
-        final float[] yDelta = new float[1];
-        final float[] initialRawX = new float[1];
-        final float[] initialRawY = new float[1];
-        final long[] downTime = new long[1];
+    private void showColorPickerForMultipleButtons(int clientId, List<ActionButtonData> buttons) {
+        final CharSequence[] colorNames = {"Red", "Green", "Blue", "Black", "White", "Gray"};
+        final int[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.BLACK, Color.WHITE, Color.GRAY};
 
-        view.setOnTouchListener((v, event) -> {
-            int X = (int) event.getRawX();
-            int Y = (int) event.getRawY();
-            switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_DOWN:
-                    downTime[0] = event.getDownTime();
-                    initialRawX[0] = event.getRawX();
-                    initialRawY[0] = event.getRawY();
-                    xDelta[0] = X - v.getX();
-                    yDelta[0] = Y - v.getY();
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    long eventDuration = event.getEventTime() - downTime[0];
-                    float dx = Math.abs(event.getRawX() - initialRawX[0]);
-                    float dy = Math.abs(event.getRawY() - initialRawY[0]);
-                    int slop = ViewConfiguration.get(v.getContext()).getScaledTouchSlop();
-                    if (dx < slop && dy < slop && eventDuration < ViewConfiguration.getLongPressTimeout()) {
-                        v.performClick();
-                    } else {
-                        snapFabToEdge(v);
-                        // Update ActionButtonData and save state
-                        ActionButtonData data = fabViewToActionDataMap.get(v);
-                        if (data != null) {
-                            data.x = v.getX();
-                            data.y = v.getY();
-                            saveActionButtonsState(data.clientId);
-                        }
-                    }
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    v.setX(X - xDelta[0]);
-                    v.setY(Y - yDelta[0]);
-                    return true;
+        AlertDialog.Builder colorBuilder = new AlertDialog.Builder(this);
+        colorBuilder.setTitle("Select Color for All Buttons");
+        colorBuilder.setItems(colorNames, (colorDialog, whichColor) -> {
+            int newColor = colors[whichColor];
+            for (ActionButtonData data : buttons) {
+                data.color = newColor;
             }
-            return false;
+            actionButtonManager.saveActionButtonsState(clientId);
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientId);
+            Toast.makeText(this, "All buttons colored " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
         });
+        colorBuilder.show();
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    private void setupHideShowFabTouchListener(View view) {
-        final float[] xDelta = new float[1];
-        final float[] yDelta = new float[1];
-        final float[] initialRawX = new float[1];
-        final float[] initialRawY = new float[1];
-        final long[] downTime = new long[1];
+    private void showColorPickerForSingleButton(int clientId, ActionButtonData buttonData) {
+        final CharSequence[] colorNames = {"Red", "Green", "Blue", "Black", "White", "Gray"};
+        final int[] colors = {Color.RED, Color.GREEN, Color.BLUE, Color.BLACK, Color.WHITE, Color.GRAY};
 
-        view.setOnTouchListener((v, event) -> {
-            int X = (int) event.getRawX();
-            int Y = (int) event.getRawY();
-            switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_DOWN:
-                    downTime[0] = event.getDownTime();
-                    initialRawX[0] = event.getRawX();
-                    initialRawY[0] = event.getRawY();
-                    xDelta[0] = X - v.getX();
-                    yDelta[0] = Y - v.getY();
-                    return true;
-                case MotionEvent.ACTION_UP:
-                    long eventDuration = event.getEventTime() - downTime[0];
-                    float dx = Math.abs(event.getRawX() - initialRawX[0]);
-                    float dy = Math.abs(event.getRawY() - initialRawY[0]);
-                    int slop = ViewConfiguration.get(v.getContext()).getScaledTouchSlop();
-                    if (dx < slop && dy < slop && eventDuration < ViewConfiguration.getLongPressTimeout()) {
-                        v.performClick();
-                    } else {
-                        snapFabToEdge(v);
-                        appTinyDB.putFloat("fabHideShow_x", v.getX());
-                        appTinyDB.putFloat("fabHideShow_y", v.getY());
-                    }
-                    return true;
-                case MotionEvent.ACTION_MOVE:
-                    v.setX(X - xDelta[0]);
-                    v.setY(Y - yDelta[0]);
-                    return true;
-            }
-            return false;
+        AlertDialog.Builder colorBuilder = new AlertDialog.Builder(this);
+        colorBuilder.setTitle("Select Color for " + buttonData.keyText);
+        colorBuilder.setItems(colorNames, (colorDialog, whichColor) -> {
+            int newColor = colors[whichColor];
+            buttonData.color = newColor;
+            actionButtonManager.saveActionButtonsState(clientId);
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientId);
+            Toast.makeText(this, buttonData.keyText + " color changed to " + colorNames[whichColor], Toast.LENGTH_SHORT).show();
         });
+        colorBuilder.show();
     }
 
-
-    private void refreshAllActionButtonsDisplay() {
-        deleteAllCustomFabs(); // Clear all existing FABs
-
-        boolean hasAnyActionButtons = false;
-        for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
-            if (!entry.getValue().isEmpty()) {
-                hasAnyActionButtons = true;
-                break; // Found at least one action button
-            }
+    private void showDeleteActionButtonDialog(int clientId) {
+        List<ActionButtonData> clientButtons = clientActionButtonsData.get(clientId);
+        if (clientButtons == null || clientButtons.isEmpty()) {
+            Toast.makeText(this, "No action buttons for this client to delete.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        // Always create the custom FABs, but their visibility will be controlled later
-        for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
-            int clientId = entry.getKey();
-            if (webViews.get(clientId) != null) { // Only display buttons for active clients
-                for (ActionButtonData data : entry.getValue()) {
-                    createCustomFab(data);
-                }
-            }
-        }
+        final CharSequence[] buttonLabels = clientButtons.stream()
+                .map(data -> data.keyText)
+                .toArray(CharSequence[]::new);
 
-        // Now, set the visibility of the fabHideShow button and individual action buttons
-        if (hasAnyActionButtons) {
-            fabHideShow.setVisibility(View.VISIBLE); // Always show fabHideShow if there are any action buttons
-            fabHideShow.setImageResource(isActionButtonsVisible ? R.drawable.ic_hide_show : R.drawable.ic_show_hide);
-
-            // Set visibility for each created custom FAB
-            for (View fab : fabViewToActionDataMap.keySet()) {
-                fab.setVisibility(isActionButtonsVisible ? View.VISIBLE : View.GONE);
-            }
-
-        } else {
-            fabHideShow.setVisibility(View.GONE);
-        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Button to Delete");
+        builder.setItems(buttonLabels, (dialog, whichButton) -> {
+            ActionButtonData dataToRemove = clientButtons.get(whichButton);
+            clientButtons.remove(dataToRemove);
+            actionButtonManager.saveActionButtonsState(clientId);
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, clientId);
+            Toast.makeText(this, dataToRemove.keyText + " Action Button deleted.", Toast.LENGTH_SHORT).show();
+        });
+        builder.show();
     }
 
-    private void deleteAllCustomFabs() {
-        for (View fab : fabViewToActionDataMap.keySet()) {
-            rootContainer.removeView(fab);
+    private void initializeKeyCodeMap() {
+        for (int i = 0; i < 12; i++) {
+            keyCodeMap.put("F" + (i + 1), KeyEvent.KEYCODE_F1 + i);
         }
-        fabViewToActionDataMap.clear();
-
-
+        keyCodeMap.put("A", KeyEvent.KEYCODE_A);
+        keyCodeMap.put("B", KeyEvent.KEYCODE_B);
+        // ... and so on
     }
 
-    private void saveActionButtonsState(int clientId) {
-        List<ActionButtonData> dataToSave = clientActionButtonsData.get(clientId);
-        if (dataToSave == null) {
-            dataToSave = new ArrayList<>(); // Should not happen if loadActionButtonsState is called, but for safety
-        }
-        String json = gson.toJson(dataToSave);
-        TinyDB tinyDB = new TinyDB(this, "client_prefs_" + clientId);
-        tinyDB.putString(ACTION_BUTTONS_DATA_KEY, json);
-    }
-
-    private void loadActionButtonsState(int clientId) {
-        TinyDB tinyDB = new TinyDB(this, "client_prefs_" + clientId);
-        String json = tinyDB.getString(ACTION_BUTTONS_DATA_KEY);
-
-        if (json != null && !json.isEmpty()) {
-            Type type = new TypeToken<List<ActionButtonData>>() {}.getType();
-            List<ActionButtonData> loadedData = gson.fromJson(json, type);
-            if (loadedData != null) {
-                clientActionButtonsData.put(clientId, loadedData);
-            }
-        }
-        if (clientActionButtonsData.get(clientId) == null) {
-            clientActionButtonsData.put(clientId, new ArrayList<>());
-        }
-    }
-
-    private void saveClientState(int clientId) {
-        TinyDB tinyDB = new TinyDB(this, "client_prefs_" + clientId);
-        WebView webView = webViews.get(clientId);
-        if (webView != null) {
-            tinyDB.putString("last_url", webView.getUrl());
-        }
-    }
-
-    private void loadClientState(int clientId) {
-        TinyDB tinyDB = new TinyDB(this, "client_prefs_" + clientId);
-        WebView webView = webViews.get(clientId);
-        if (webView != null) {
-            String lastUrl = tinyDB.getString("last_url");
-            if (!lastUrl.isEmpty()) {
-                webView.loadUrl(lastUrl);
-            }
-        }
-    }
-
-    private final Map<String, Handler> timedRepeatMacroHandlers = new HashMap<>();
-
-    private void dispatchKeyEvent(WebView webView, ActionButtonData buttonData) {
-        switch (buttonData.macroType) {
-            case ActionButtonData.TYPE_NORMAL:
-                dispatchSingleKeyEvent(webView, buttonData.keyCode, buttonData.isAltPressed, buttonData.isCtrlPressed);
-                break;
-            case ActionButtonData.TYPE_MACRO:
-                executeMacro(webView, buttonData);
-                break;
-            case ActionButtonData.TYPE_TIMED_REPEAT_MACRO:
-                toggleTimedRepeatMacro(webView, buttonData);
-                break;
-            case ActionButtonData.TYPE_COMBO:
-                executeCombo(webView, buttonData);
-                break;
-        }
-    }
-
-    private void dispatchSingleKeyEvent(WebView webView, int keyCode, boolean isAltPressed, boolean isCtrlPressed) {
-        String key;
-        String code;
-        int jsKeyCode;
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_F1: key = "F1"; code = "F1"; jsKeyCode = 112; break;
-            case KeyEvent.KEYCODE_F2: key = "F2"; code = "F2"; jsKeyCode = 113; break;
-            case KeyEvent.KEYCODE_F3: key = "F3"; code = "F3"; jsKeyCode = 114; break;
-            case KeyEvent.KEYCODE_F4: key = "F4"; code = "F4"; jsKeyCode = 115; break;
-            case KeyEvent.KEYCODE_F5: key = "F5"; code = "F5"; jsKeyCode = 116; break;
-            case KeyEvent.KEYCODE_F6: key = "F6"; code = "F6"; jsKeyCode = 117; break;
-            case KeyEvent.KEYCODE_F7: key = "F7"; code = "F7"; jsKeyCode = 118; break;
-            case KeyEvent.KEYCODE_F8: key = "F8"; code = "F8"; jsKeyCode = 119; break;
-            case KeyEvent.KEYCODE_F9: key = "F9"; code = "F9"; jsKeyCode = 120; break;
-            case KeyEvent.KEYCODE_F10: key = "F10"; code = "F10"; jsKeyCode = 121; break;
-            case KeyEvent.KEYCODE_F11: key = "F11"; code = "F11"; jsKeyCode = 122; break;
-            case KeyEvent.KEYCODE_F12: key = "F12"; code = "F12"; jsKeyCode = 123; break;
-            case KeyEvent.KEYCODE_NUMPAD_0: key = "0"; code = "Numpad0"; jsKeyCode = 48; break;
-            case KeyEvent.KEYCODE_NUMPAD_1: key = "1"; code = "Numpad1"; jsKeyCode = 49; break;
-            case KeyEvent.KEYCODE_NUMPAD_2: key = "2"; code = "Numpad2"; jsKeyCode = 50; break;
-            case KeyEvent.KEYCODE_NUMPAD_3: key = "3"; code = "Numpad3"; jsKeyCode = 51; break;
-            case KeyEvent.KEYCODE_NUMPAD_4: key = "4"; code = "Numpad4"; jsKeyCode = 52; break;
-            case KeyEvent.KEYCODE_NUMPAD_5: key = "5"; code = "Numpad5"; jsKeyCode = 53; break;
-            case KeyEvent.KEYCODE_NUMPAD_6: key = "6"; code = "Numpad6"; jsKeyCode = 54; break;
-            case KeyEvent.KEYCODE_NUMPAD_7: key = "7"; code = "Numpad7"; jsKeyCode = 55; break;
-            case KeyEvent.KEYCODE_NUMPAD_8: key = "8"; code = "Numpad8"; jsKeyCode = 56; break;
-            case KeyEvent.KEYCODE_NUMPAD_9: key = "9"; code = "Numpad9"; jsKeyCode = 57; break;
-            case KeyEvent.KEYCODE_0: key = "0"; code = "Digit0"; jsKeyCode = 48; break;
-            case KeyEvent.KEYCODE_1: key = "1"; code = "Digit1"; jsKeyCode = 49; break;
-            case KeyEvent.KEYCODE_2: key = "2"; code = "Digit2"; jsKeyCode = 50; break;
-            case KeyEvent.KEYCODE_3: key = "3"; code = "Digit3"; jsKeyCode = 51; break;
-            case KeyEvent.KEYCODE_4: key = "4"; code = "Digit4"; jsKeyCode = 52; break;
-            case KeyEvent.KEYCODE_5: key = "5"; code = "Digit5"; jsKeyCode = 53; break;
-            case KeyEvent.KEYCODE_6: key = "6"; code = "Digit6"; jsKeyCode = 54; break;
-            case KeyEvent.KEYCODE_7: key = "7"; code = "Digit7"; jsKeyCode = 55; break;
-            case KeyEvent.KEYCODE_8: key = "8"; code = "Digit8"; jsKeyCode = 56; break;
-            case KeyEvent.KEYCODE_9: key = "9"; code = "Digit9"; jsKeyCode = 57; break;
-            default:
-                key = String.valueOf((char) (new KeyEvent(KeyEvent.ACTION_DOWN, keyCode)).getUnicodeChar());
-                code = "Key" + key.toUpperCase();
-                jsKeyCode = keyCode; // Fallback to Android keyCode for others
-                break;
-        }
-
-        String script = "javascript:(function() {" +
-                "var canvas = document.querySelector('canvas');" +
-                "if (canvas) {" ;
-
-        if (isAltPressed) {
-            script += "   canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Alt', code: 'AltLeft', keyCode: 18, bubbles: true, cancelable: true }));";
-        }
-        if (isCtrlPressed) {
-            script += "   canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Control', code: 'ControlLeft', keyCode: 17, bubbles: true, cancelable: true }));";
-        }
-
-        script += "   var mainEventProps = { bubbles: true, cancelable: true, key: '" + key + "', code: '" + code + "', keyCode: " + jsKeyCode + " };" +
-                  "   canvas.dispatchEvent(new KeyboardEvent('keydown', mainEventProps));" +
-                  "   canvas.dispatchEvent(new KeyboardEvent('keyup', mainEventProps));";
-
-        if (isAltPressed) {
-            script += "   canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Alt', code: 'AltLeft', keyCode: 18, bubbles: true, cancelable: true }));";
-        }
-        if (isCtrlPressed) {
-            script += "   canvas.dispatchEvent(new KeyboardEvent('keyup', { key: 'Control', code: 'ControlLeft', keyCode: 17, bubbles: true, cancelable: true }));";
-        }
-
-        script += "}" +
-                  "})()";
-        webView.evaluateJavascript(script, null);
-    }
-
-    private void executeMacro(WebView webView, ActionButtonData buttonData) {
-        String[] keys = buttonData.macroKeys.split(",");
-        Handler handler = new Handler();
-        for (int i = 0; i < keys.length; i++) {
-            final int keyCode = KeyEvent.keyCodeFromString("KEYCODE_" + keys[i].trim().toUpperCase());
-            final int delay = (int) (buttonData.delayBetweenKeys * 1000 * i);
-            handler.postDelayed(() -> dispatchSingleKeyEvent(webView, keyCode, buttonData.isAltPressed, buttonData.isCtrlPressed), delay);
-        }
-    }
-
-    private void executeCombo(WebView webView, ActionButtonData buttonData) {
-        Handler handler = new Handler();
-        long delay = 0;
-
-        // Dispatch Main Function Key
-        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboMainKey, false, false), delay);
-        delay += 100; // Small delay between keys
-
-        // Dispatch Digit Key
-        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboDigitKey, false, false), delay);
-        delay += 100; // Small delay between keys
-
-        // Dispatch After Pressed Key
-        handler.postDelayed(() -> dispatchSingleKeyEvent(webView, buttonData.comboAfterPressedKey, false, false), delay);
-    }
-
-    private void toggleTimedRepeatMacro(WebView webView, ActionButtonData buttonData) {
-        buttonData.isToggleOn = !buttonData.isToggleOn;
-
-        // Update the ActionButtonData object in clientActionButtonsData
-        List<ActionButtonData> clientButtons = clientActionButtonsData.get(buttonData.clientId);
-        if (clientButtons != null) {
-            for (int i = 0; i < clientButtons.size(); i++) {
-                if (clientButtons.get(i).keyText.equals(buttonData.keyText) && clientButtons.get(i).clientId == buttonData.clientId) {
-                    clientButtons.set(i, buttonData);
-                    break;
-                }
-            }
-        }
-        saveActionButtonsState(buttonData.clientId);
-        if (buttonData.isToggleOn) {
-            // Start repeating
-            Handler handler = new Handler();
-            Runnable runnable = new Runnable() {
-                @Override
-                public void run() {
-                    dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
-                    handler.postDelayed(this, (long) (buttonData.repeatInterval * 1000));
-                }
-            };
-            timedRepeatMacroHandlers.put(buttonData.keyText, handler);
-            // Initial dispatch
-            dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
-            handler.postDelayed(runnable, (long) (buttonData.repeatInterval * 1000));
-        } else {
-            // Stop repeating
-            if (timedRepeatMacroHandlers.containsKey(buttonData.keyText)) {
-                timedRepeatMacroHandlers.get(buttonData.keyText).removeCallbacksAndMessages(null);
-                timedRepeatMacroHandlers.remove(buttonData.keyText);
-            }
-        }
-        // Update button appearance to reflect toggle state
-        View fabView = null;
-        for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-            if (entry.getValue().keyText.equals(buttonData.keyText) && entry.getValue().clientId == buttonData.clientId) {
-                fabView = entry.getKey();
-                break;
-            }
-        }
-
-        if (fabView != null) {
-            android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) fabView.getBackground();
-            if (background != null) {
-                if (buttonData.isToggleOn) {
-                    background.setColor(Color.CYAN);
-                } else {
-                    background.setColor(buttonData.color); // Revert to original color
-                }
-            }
-        }
-    }
-
-    /* ---------- lifecycle ---------- */
     private void fullScreenOn() {
         WindowInsetsControllerCompat c = WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView());
         if (c != null) {
@@ -1958,16 +930,27 @@ public class MainActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) getSupportActionBar().hide();
     }
 
-    @Override public void onBackPressed() {
-        if (exit) { finish(); return; }
+    @Override
+    public void onBackPressed() {
+        if (exit) {
+            finish();
+            return;
+        }
         Toast.makeText(this, "Press Back again to Exit", Toast.LENGTH_SHORT).show();
         exit = true;
         new Handler().postDelayed(() -> exit = false, 3000);
     }
 
-    @Override protected void onPause() {
+    @Override
+    protected void onPause() {
         super.onPause();
         appTinyDB.putBoolean("isActionButtonsVisible", isActionButtonsVisible);
+        appTinyDB.putBoolean("areActionButtonsPositionsFixed", areActionButtonsPositionsFixed);
+        for (int clientId : configuredClientIds) {
+            if (clientActionButtonsData.containsKey(clientId)) {
+                actionButtonManager.saveActionButtonsState(clientId);
+            }
+        }
     }
 
     @Override
@@ -1977,27 +960,55 @@ public class MainActivity extends AppCompatActivity {
         appTinyDB.putBoolean("areActionButtonsPositionsFixed", areActionButtonsPositionsFixed);
         for (int clientId : configuredClientIds) {
             if (clientActionButtonsData.containsKey(clientId)) {
-                saveActionButtonsState(clientId);
+                actionButtonManager.saveActionButtonsState(clientId);
             }
         }
     }
 
-    @Override protected void onDestroy() {
+    @Override
+    protected void onDestroy() {
         super.onDestroy();
-        for (int i = 0; i < webViews.size(); i++) webViews.valueAt(i).destroy();
+        for (int i = 0; i < webViews.size(); i++) {
+            webViews.valueAt(i).destroy();
+        }
         webViews.clear();
         layouts.clear();
-        deleteAllCustomFabs();
+        actionButtonManager.deleteAllCustomFabs();
+        keyDispatcher.stopAllTimedRepeatMacros();
     }
 
-    @Override protected void onSaveInstanceState(@NonNull Bundle out) {
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle out) {
         super.onSaveInstanceState(out);
-        out.putInt("activeClientId", activeClientId);
+        out.putInt("activeClientId", clientManager.getActiveClientId());
     }
 
-    @Override protected void onRestoreInstanceState(@NonNull Bundle in) {
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle in) {
         super.onRestoreInstanceState(in);
         activeClientId = in.getInt("activeClientId", -1);
-        if (activeClientId != -1) openClient(activeClientId);
+        clientManager.setActiveClientId(activeClientId);
+    }
+
+    @Override
+    public void saveFabHideShowPosition(float x, float y) {
+        appTinyDB.putFloat("fabHideShow_x", x);
+        appTinyDB.putFloat("fabHideShow_y", y);
+    }
+
+    public String getClientDisplayName(int id) {
+        return clientManager.getClientDisplayName(id);
+    }
+
+    public SparseArray<WebView> getWebViews() {
+        return webViews;
+    }
+
+    public int getScreenHeight() {
+        return screenHeight;
+    }
+
+    public int getScreenWidth() {
+        return screenWidth;
     }
 }

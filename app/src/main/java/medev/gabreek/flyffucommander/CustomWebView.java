@@ -6,7 +6,6 @@ import android.view.inputmethod.BaseInputConnection;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
 public class CustomWebView extends WebView {
     public CustomWebView(Context context) {
