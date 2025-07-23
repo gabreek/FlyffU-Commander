@@ -69,68 +69,13 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
     // ... (existing variables) ...
     
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        setTitle("FlyffU Android");
-
-        // ... (existing onCreate code) ...
-
-        
-
-        // ... (rest of onCreate) ...
-    }
+    
 
     // ... (existing methods) ...
 
-    private void showClientManagerMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor);
-        popup.getMenu().add(Menu.NONE, 1, Menu.NONE, "New Client");
+    
 
-        // ... (existing client submenu) ...
-
-        SubMenu util = popup.getMenu().addSubMenu(Menu.NONE, 3, Menu.NONE, "Utils");
-        util.add(Menu.NONE, 7000 + Math.abs(Constants.WIKI_CLIENT_ID), Menu.NONE, "Flyffipedia");
-        // ... (existing util submenu items) ...
-
-        popup.getMenu().add(Menu.NONE, 4, Menu.NONE, "Backup / Restore"); // ADD THIS LINE
-
-        popup.setOnMenuItemClickListener(item -> {
-            handleMenuClick(item);
-            return true;
-        });
-        popup.show();
-    }
-
-    private void handleMenuClick(MenuItem item) {
-        int itemId = item.getItemId();
-        int id = -1;
-
-        if (itemId > 1000) {
-            if (itemId < 2000) id = itemId - 1000;
-            else if (itemId < 3000) id = itemId - 2000;
-            else if (itemId < 4000) id = itemId - 3000;
-            else if (itemId < 5000) id = itemId - 4000;
-            else if (itemId < 6000) id = itemId - 5000;
-            else if (itemId < 7000) id = itemId - 6000;
-            else if (itemId < 8000) id = -(itemId - 7000);
-        }
-
-        if (itemId == 1) {
-            clientManager.createNewClient();
-        } else if (id != -1) {
-            if (itemId >= 1000 && itemId < 2000) clientManager.switchToClient(id);
-            else if (itemId >= 2000 && itemId < 3000) clientManager.confirmKillClient(id);
-            else if (itemId >= 3000 && itemId < 4000) clientManager.openClient(id);
-            else if (itemId >= 4000 && itemId < 5000) showRenameDialog(id);
-            else if (itemId >= 5000 && itemId < 6000) clientManager.confirmDeleteClient(id);
-            else if (itemId >= 6000 && itemId < 7000) {
-                clientManager.switchToClient(id);
-                showActionButtonsMenu();
-            } else if (itemId >= 7000 && itemId < 8000) clientManager.openUtilityClient(id);
-        }
-    }
+    
 
     private final SparseArray<WebView> webViews = new SparseArray<>();
     private final SparseArray<FrameLayout> layouts = new SparseArray<>();
