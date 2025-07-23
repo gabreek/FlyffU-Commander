@@ -137,7 +137,7 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
         screenHeight = dm.heightPixels;
 
         displayUtils = new DisplayUtils(this);
-        keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap);
+        keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap, actionButtonManager);
         actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, keyDispatcher, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
         clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, id -> {
             switch (id) {
@@ -152,7 +152,7 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
                 default:
                     return "Client " + id;
             }
-        }, this::setTitle, this::getScreenHeight, this::getScreenWidth);
+        }, this::setTitle, this::getScreenHeight, this::getScreenWidth, () -> isActionButtonsVisible);
         fabMovementHandler = new FabMovementHandler(screenWidth, screenHeight);
         backupManager = new BackupManager(this, gson, clientActionButtonsData, () -> actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId));
 

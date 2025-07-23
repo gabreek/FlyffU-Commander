@@ -41,6 +41,7 @@ public class ClientManager {
     private final Consumer<String> titleSetter;
     private final Supplier<Integer> screenHeightProvider;
     private final Supplier<Integer> screenWidthProvider;
+    private final Supplier<Boolean> isActionButtonsVisibleProvider;
 
     @FunctionalInterface
     public interface WebViewCreator {
@@ -51,7 +52,8 @@ public class ClientManager {
                          TinyDB appTinyDB, Set<Integer> configuredClientIds, LinearLayout linearLayout,
                          FloatingActionButton floatingActionButton, ActionButtonManager actionButtonManager,
                          WebViewCreator webViewCreator, Function<Integer, String> clientDisplayNameProvider,
-                         Consumer<String> titleSetter, Supplier<Integer> screenHeightProvider, Supplier<Integer> screenWidthProvider) {
+                         Consumer<String> titleSetter, Supplier<Integer> screenHeightProvider, Supplier<Integer> screenWidthProvider,
+                         Supplier<Boolean> isActionButtonsVisibleProvider) {
         this.context = context;
         this.webViews = webViews;
         this.layouts = layouts;
@@ -65,6 +67,7 @@ public class ClientManager {
         this.titleSetter = titleSetter;
         this.screenHeightProvider = screenHeightProvider;
         this.screenWidthProvider = screenWidthProvider;
+        this.isActionButtonsVisibleProvider = isActionButtonsVisibleProvider;
     }
 
     public int getActiveClientId() {
@@ -96,7 +99,7 @@ public class ClientManager {
         webViews.put(id, w);
         switchToClient(id);
         floatingActionButton.setVisibility(View.VISIBLE);
-        actionButtonManager.refreshAllActionButtonsDisplay(true, null, id);
+        actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisibleProvider.get(), null, id);
     }
 
     public void switchToClient(int id) {
@@ -130,7 +133,7 @@ public class ClientManager {
                 imm.hideSoftInputFromWindow(w.getWindowToken(), 0);
             }
         }
-        actionButtonManager.refreshAllActionButtonsDisplay(true, null, id);
+        actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisibleProvider.get(), null, id);
     }
 
     public void switchToNextClient() {
@@ -163,7 +166,7 @@ public class ClientManager {
             activeClientId = webViews.keyAt(0);
             switchToClient(activeClientId);
         }
-        actionButtonManager.refreshAllActionButtonsDisplay(true, null, activeClientId);
+        actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisibleProvider.get(), null, activeClientId);
     }
 
     public void deleteClient(int id) {

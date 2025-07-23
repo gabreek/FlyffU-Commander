@@ -19,13 +19,15 @@ public class KeyDispatcher {
     private final Map<Integer, List<ActionButtonData>> clientActionButtonsData;
     private final Map<View, ActionButtonData> fabViewToActionDataMap;
     private final SparseArray<WebView> webViews;
+    private final ActionButtonManager actionButtonManager;
 
 
-    public KeyDispatcher(Context context, SparseArray<WebView> webViews, Map<Integer, List<ActionButtonData>> clientActionButtonsData, Map<View, ActionButtonData> fabViewToActionDataMap) {
+    public KeyDispatcher(Context context, SparseArray<WebView> webViews, Map<Integer, List<ActionButtonData>> clientActionButtonsData, Map<View, ActionButtonData> fabViewToActionDataMap, ActionButtonManager actionButtonManager) {
         this.context = context;
         this.webViews = webViews;
         this.clientActionButtonsData = clientActionButtonsData;
         this.fabViewToActionDataMap = fabViewToActionDataMap;
+        this.actionButtonManager = actionButtonManager;
     }
 
     public void dispatchKeyEvent(WebView webView, ActionButtonData buttonData) {
@@ -144,18 +146,7 @@ public class KeyDispatcher {
 
     private void toggleTimedRepeatMacro(WebView webView, ActionButtonData buttonData) {
         buttonData.isToggleOn = !buttonData.isToggleOn;
-
-        // Update the ActionButtonData object in clientActionButtonsData
-        List<ActionButtonData> clientButtons = clientActionButtonsData.get(buttonData.clientId);
-        if (clientButtons != null) {
-            for (int i = 0; i < clientButtons.size(); i++) {
-                if (clientButtons.get(i).keyText.equals(buttonData.keyText) && clientButtons.get(i).clientId == buttonData.clientId) {
-                    clientButtons.set(i, buttonData);
-                    break;
-                }
-            }
-        }
-        // No need to save state here, MainActivity will handle it onPause/onStop
+        actionButtonManager.updateActionButtonToggleState(buttonData);
 
         if (buttonData.isToggleOn) {
             // Start repeating
@@ -179,25 +170,7 @@ public class KeyDispatcher {
             }
         }
 
-        // Update button appearance to reflect toggle state
-        View fabView = null;
-        for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
-            if (entry.getValue().equals(buttonData)) {
-                fabView = entry.getKey();
-                break;
-            }
-        }
-
-        if (fabView != null) {
-            android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) fabView.getBackground();
-            if (background != null) {
-                if (buttonData.isToggleOn) {
-                    background.setColor(Color.CYAN);
-                } else {
-                    background.setColor(buttonData.color); // Revert to original color
-                }
-            }
-        }
+        
     }
 
     public void stopAllTimedRepeatMacros() {

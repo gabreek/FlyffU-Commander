@@ -183,9 +183,7 @@ public class ActionButtonManager {
             }
         }
 
-        for (View fab : fabViewToActionDataMap.keySet()) {
-            fab.setVisibility(isVisible ? View.VISIBLE : View.GONE);
-        }
+        
     }
 
     public void deleteAllCustomFabs() {
@@ -213,11 +211,49 @@ public class ActionButtonManager {
             Type type = new TypeToken<List<ActionButtonData>>() {}.getType();
             List<ActionButtonData> loadedData = new Gson().fromJson(json, type);
             if (loadedData != null) {
+                // Set all toggles to off when loading
+                for (ActionButtonData data : loadedData) {
+                    data.isToggleOn = false;
+                }
                 clientActionButtonsData.put(clientId, loadedData);
             }
         }
         if (clientActionButtonsData.get(clientId) == null) {
             clientActionButtonsData.put(clientId, new ArrayList<>());
+        }
+    }
+
+    public void updateActionButtonToggleState(ActionButtonData buttonData) {
+        List<ActionButtonData> clientButtons = clientActionButtonsData.get(buttonData.clientId);
+        if (clientButtons != null) {
+            for (int i = 0; i < clientButtons.size(); i++) {
+                ActionButtonData existingData = clientButtons.get(i);
+                if (existingData.keyText.equals(buttonData.keyText) && existingData.clientId == buttonData.clientId) {
+                    existingData.isToggleOn = buttonData.isToggleOn; // Update the state
+                    saveActionButtonsState(buttonData.clientId); // Save immediately
+                    break;
+                }
+            }
+        }
+
+        // Update button appearance to reflect toggle state
+        View fabView = null;
+        for (Map.Entry<View, ActionButtonData> entry : fabViewToActionDataMap.entrySet()) {
+            if (entry.getValue().keyText.equals(buttonData.keyText) && entry.getValue().clientId == buttonData.clientId) {
+                fabView = entry.getKey();
+                break;
+            }
+        }
+
+        if (fabView != null) {
+            android.graphics.drawable.GradientDrawable background = (android.graphics.drawable.GradientDrawable) fabView.getBackground();
+            if (background != null) {
+                if (buttonData.isToggleOn) {
+                    background.setColor(Color.CYAN);
+                } else {
+                    background.setColor(buttonData.color); // Revert to original color
+                }
+            }
         }
     }
 }
