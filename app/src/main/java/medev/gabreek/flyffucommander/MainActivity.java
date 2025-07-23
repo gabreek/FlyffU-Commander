@@ -62,7 +62,185 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+
 public class MainActivity extends AppCompatActivity implements FabMovementHandler.FabPositionSaver {
+
+    // ... (existing variables) ...
+    private ActivityResultLauncher<Intent> backupLauncher;
+    private ActivityResultLauncher<Intent> restoreLauncher;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        setTitle("FlyffU Android");
+
+        // ... (existing onCreate code) ...
+
+        backupLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null) {
+                            writeBackupToFile(uri);
+                        }
+                    }
+                });
+
+        restoreLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                        Uri uri = result.getData().getData();
+                        if (uri != null) {
+                            readBackupFromFile(uri);
+                        }
+                    }
+                });
+
+        // ... (rest of onCreate) ...
+    }
+
+    // ... (existing methods) ...
+
+    private void showClientManagerMenu(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor);
+        popup.getMenu().add(Menu.NONE, 1, Menu.NONE, "New Client");
+
+        // ... (existing client submenu) ...
+
+        SubMenu util = popup.getMenu().addSubMenu(Menu.NONE, 3, Menu.NONE, "Utils");
+        util.add(Menu.NONE, 7000 + Math.abs(Constants.WIKI_CLIENT_ID), Menu.NONE, "Flyffipedia");
+        // ... (existing util submenu items) ...
+
+        popup.getMenu().add(Menu.NONE, 4, Menu.NONE, "Backup / Restore"); // ADD THIS LINE
+
+        popup.setOnMenuItemClickListener(item -> {
+            handleMenuClick(item);
+            return true;
+        });
+        popup.show();
+    }
+
+    private void handleMenuClick(MenuItem item) {
+        int itemId = item.getItemId();
+        // ... (existing handleMenuClick code) ...
+
+        if (itemId == 1) {
+            clientManager.createNewClient();
+        } else if (itemId == 4) { // ADD THIS BLOCK
+            showBackupRestoreDialog();
+        } else if (id != -1) {
+            // ... (existing id handling) ...
+        }
+    }
+
+    private void showBackupRestoreDialog() {
+        final CharSequence[] items = {"Backup All Action Buttons", "Restore Action Buttons"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Backup & Restore");
+        builder.setItems(items, (dialog, item) -> {
+            if (item == 0) { // Backup
+                performBackup();
+            } else { // Restore
+                performRestore();
+            }
+        });
+        builder.show();
+    }
+
+    private void performBackup() {
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        intent.putExtra(Intent.EXTRA_TITLE, "flyffu_action_buttons_backup.json");
+        backupLauncher.launch(intent);
+    }
+
+    private void writeBackupToFile(Uri uri) {
+        try (OutputStream outputStream = getContentResolver().openOutputStream(uri)) {
+            Map<String, List<ActionButtonData>> backupData = new HashMap<>();
+            for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
+                backupData.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+            String json = gson.toJson(backupData);
+            outputStream.write(json.getBytes());
+            Toast.makeText(this, "Backup successful!", Toast.LENGTH_SHORT).show();
+        } catch (IOException e) {
+            Toast.makeText(this, "Backup failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void performRestore() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("application/json");
+        restoreLauncher.launch(intent);
+    }
+
+    private void readBackupFromFile(Uri uri) {
+        StringBuilder stringBuilder = new StringBuilder();
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                stringBuilder.append(line);
+            }
+            confirmRestore(stringBuilder.toString());
+        } catch (IOException e) {
+            Toast.makeText(this, "Failed to read backup file.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void confirmRestore(String json) {
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm Restore")
+                .setMessage("This will overwrite ALL existing action buttons. This action cannot be undone. Are you sure?")
+                .setPositiveButton("Restore", (dialog, which) -> applyRestore(json))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void applyRestore(String json) {
+        try {
+            Type type = new TypeToken<Map<String, List<ActionButtonData>>>() {}.getType();
+            Map<String, List<ActionButtonData>> restoredData = gson.fromJson(json, type);
+
+            if (restoredData == null) {
+                Toast.makeText(this, "Invalid backup file format.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            clientActionButtonsData.clear();
+            for (Map.Entry<String, List<ActionButtonData>> entry : restoredData.entrySet()) {
+                try {
+                    int clientId = Integer.parseInt(entry.getKey());
+                    clientActionButtonsData.put(clientId, entry.getValue());
+                    actionButtonManager.saveActionButtonsState(clientId);
+                } catch (NumberFormatException e) {
+                    // Safely ignore entries with invalid client IDs
+                }
+            }
+
+            actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId);
+            Toast.makeText(this, "Restore successful!", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Restore failed: Invalid file content.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    // ... (rest of the file)
 
     private final SparseArray<WebView> webViews = new SparseArray<>();
     private final SparseArray<FrameLayout> layouts = new SparseArray<>();
