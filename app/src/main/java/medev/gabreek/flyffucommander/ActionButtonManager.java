@@ -217,15 +217,28 @@ public class ActionButtonManager {
             Type type = new TypeToken<List<ActionButtonData>>() {}.getType();
             List<ActionButtonData> loadedData = new Gson().fromJson(json, type);
             if (loadedData != null) {
-                // Set all toggles to off when loading
-                for (ActionButtonData data : loadedData) {
-                    data.isToggleOn = false;
-                }
                 clientActionButtonsData.put(clientId, loadedData);
             }
         }
         if (clientActionButtonsData.get(clientId) == null) {
             clientActionButtonsData.put(clientId, new ArrayList<>());
+        }
+    }
+
+    public void resetAllTogglesState() {
+        for (Map.Entry<Integer, List<ActionButtonData>> entry : clientActionButtonsData.entrySet()) {
+            int clientId = entry.getKey();
+            List<ActionButtonData> buttons = entry.getValue();
+            boolean wasModified = false;
+            for (ActionButtonData button : buttons) {
+                if (button.macroType == ActionButtonData.TYPE_TIMED_REPEAT_MACRO && button.isToggleOn) {
+                    button.isToggleOn = false;
+                    wasModified = true;
+                }
+            }
+            if (wasModified) {
+                saveActionButtonsState(clientId);
+            }
         }
     }
 

@@ -150,6 +150,7 @@ public class KeyDispatcher {
     private void toggleTimedRepeatMacro(WebView webView, ActionButtonData buttonData) {
         buttonData.isToggleOn = !buttonData.isToggleOn;
         actionButtonManager.updateActionButtonToggleState(buttonData);
+        actionButtonManager.saveActionButtonsState(buttonData.clientId);
 
         if (buttonData.isToggleOn) {
             // Start repeating
@@ -157,14 +158,25 @@ public class KeyDispatcher {
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
+                    WebView targetWebView = webViews.get(buttonData.clientId);
+                    if (targetWebView == null) {
+                        // WebView is gone, client was likely closed. Stop the macro.
+                        buttonData.isToggleOn = false;
+                        if (timedRepeatMacroHandlers.containsKey(buttonData.keyText)) {
+                            timedRepeatMacroHandlers.get(buttonData.keyText).removeCallbacksAndMessages(null);
+                            timedRepeatMacroHandlers.remove(buttonData.keyText);
+                        }
+                        actionButtonManager.saveActionButtonsState(buttonData.clientId);
+                        return; // Stop execution
+                    }
+
+                    dispatchSingleKeyEvent(targetWebView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
                     handler.postDelayed(this, (long) (buttonData.repeatInterval * 1000));
                 }
             };
             timedRepeatMacroHandlers.put(buttonData.keyText, handler);
             // Initial dispatch
-            dispatchSingleKeyEvent(webView, buttonData.repeatKey, buttonData.isAltPressed, buttonData.isCtrlPressed);
-            handler.postDelayed(runnable, (long) (buttonData.repeatInterval * 1000));
+            handler.post(runnable);
         } else {
             // Stop repeating
             if (timedRepeatMacroHandlers.containsKey(buttonData.keyText)) {

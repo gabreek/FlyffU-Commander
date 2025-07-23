@@ -172,6 +172,8 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
             actionButtonManager.loadActionButtonsState(clientId);
         }
 
+        actionButtonManager.resetAllTogglesState();
+
         if (savedInstanceState == null) {
             if (configuredClientIds.isEmpty()) {
                 clientManager.createNewClient();
