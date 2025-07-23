@@ -133,8 +133,6 @@ public class ClientManager {
         actionButtonManager.refreshAllActionButtonsDisplay(true, null, id);
     }
 
-    }
-
     public void switchToNextClient() {
         if (webViews.size() > 1) {
             List<Integer> ids = new ArrayList<>();
