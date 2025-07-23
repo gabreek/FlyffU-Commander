@@ -37,7 +37,6 @@ public class ClientManager {
     private final FloatingActionButton floatingActionButton;
     private final ActionButtonManager actionButtonManager;
     private final WebViewCreator webViewCreator;
-    private final Function<Integer, String> clientDisplayNameProvider;
     private final Consumer<String> titleSetter;
     private final Supplier<Integer> screenHeightProvider;
     private final Supplier<Integer> screenWidthProvider;
@@ -50,7 +49,7 @@ public class ClientManager {
     public ClientManager(Context context, SparseArray<WebView> webViews, SparseArray<FrameLayout> layouts,
                          TinyDB appTinyDB, Set<Integer> configuredClientIds, LinearLayout linearLayout,
                          FloatingActionButton floatingActionButton, ActionButtonManager actionButtonManager,
-                         WebViewCreator webViewCreator, Function<Integer, String> clientDisplayNameProvider,
+                         WebViewCreator webViewCreator,
                          Consumer<String> titleSetter, Supplier<Integer> screenHeightProvider, Supplier<Integer> screenWidthProvider) {
         this.context = context;
         this.webViews = webViews;
@@ -61,7 +60,6 @@ public class ClientManager {
         this.floatingActionButton = floatingActionButton;
         this.actionButtonManager = actionButtonManager;
         this.webViewCreator = webViewCreator;
-        this.clientDisplayNameProvider = clientDisplayNameProvider;
         this.titleSetter = titleSetter;
         this.screenHeightProvider = screenHeightProvider;
         this.screenWidthProvider = screenWidthProvider;
@@ -206,7 +204,18 @@ public class ClientManager {
     }
 
     public String getClientDisplayName(int id) {
-        return clientDisplayNameProvider.apply(id);
+        switch (id) {
+            case Constants.WIKI_CLIENT_ID:
+                return "Wiki";
+            case Constants.MADRIGAL_CLIENT_ID:
+                return "Madrigal";
+            case Constants.FLYFFULATOR_CLIENT_ID:
+                return "Flyffulator";
+            case Constants.FLYFFUSKILL_CLIENT_ID:
+                return "FlyffuSkill";
+            default:
+                return "Client " + id;
+        }
     }
 
     public void createNewClient() {

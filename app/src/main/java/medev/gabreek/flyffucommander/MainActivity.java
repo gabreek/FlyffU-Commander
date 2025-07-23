@@ -139,7 +139,7 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
         displayUtils = new DisplayUtils(this);
         keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap);
         actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, keyDispatcher, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
-        clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, this::getClientDisplayName, this::setTitle, this::getScreenHeight, this::getScreenWidth);
+        clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, this::setTitle, this::getScreenHeight, this::getScreenWidth);
         fabMovementHandler = new FabMovementHandler(screenWidth, screenHeight);
         backupManager = new BackupManager(this, gson, clientActionButtonsData, () -> actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId));
 
