@@ -847,7 +847,7 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
         builder.setTitle("Select Button to Color");
         builder.setItems(buttonLabels, (dialog, whichButton) -> {
             if (whichButton == 0) { // "All buttons"
-                showColorPickerForMultipleButtons(clientId, buttons);
+                showColorPickerForMultipleButtons(clientId, clientButtons);
             } else {
                 showColorPickerForSingleButton(clientId, clientButtons.get(whichButton - 1));
             }
