@@ -183,8 +183,9 @@ public class ActionButtonManager {
             }
         }
 
-        
-    }
+        for (View fab : fabViewToActionDataMap.keySet()) {
+            fab.setVisibility(isVisible ? View.VISIBLE : View.GONE);
+        }
 
     public void deleteAllCustomFabs() {
         for (View fab : fabViewToActionDataMap.keySet()) {
