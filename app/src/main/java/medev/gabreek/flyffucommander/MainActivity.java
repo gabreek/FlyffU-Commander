@@ -139,7 +139,20 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
         displayUtils = new DisplayUtils(this);
         keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap);
         actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, keyDispatcher, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
-        clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, this::setTitle, this::getScreenHeight, this::getScreenWidth);
+        clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, id -> {
+            switch (id) {
+                case Constants.WIKI_CLIENT_ID:
+                    return "Wiki";
+                case Constants.MADRIGAL_CLIENT_ID:
+                    return "Madrigal";
+                case Constants.FLYFFULATOR_CLIENT_ID:
+                    return "Flyffulator";
+                case Constants.FLYFFUSKILL_CLIENT_ID:
+                    return "FlyffuSkill";
+                default:
+                    return "Client " + id;
+            }
+        }, this::setTitle, this::getScreenHeight, this::getScreenWidth);
         fabMovementHandler = new FabMovementHandler(screenWidth, screenHeight);
         backupManager = new BackupManager(this, gson, clientActionButtonsData, () -> actionButtonManager.refreshAllActionButtonsDisplay(isActionButtonsVisible, fabHideShow, activeClientId));
 
