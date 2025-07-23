@@ -19,14 +19,17 @@ public class KeyDispatcher {
     private final Map<Integer, List<ActionButtonData>> clientActionButtonsData;
     private final Map<View, ActionButtonData> fabViewToActionDataMap;
     private final SparseArray<WebView> webViews;
-    private final ActionButtonManager actionButtonManager;
+    private ActionButtonManager actionButtonManager;
 
 
-    public KeyDispatcher(Context context, SparseArray<WebView> webViews, Map<Integer, List<ActionButtonData>> clientActionButtonsData, Map<View, ActionButtonData> fabViewToActionDataMap, ActionButtonManager actionButtonManager) {
+    public KeyDispatcher(Context context, SparseArray<WebView> webViews, Map<Integer, List<ActionButtonData>> clientActionButtonsData, Map<View, ActionButtonData> fabViewToActionDataMap) {
         this.context = context;
         this.webViews = webViews;
         this.clientActionButtonsData = clientActionButtonsData;
         this.fabViewToActionDataMap = fabViewToActionDataMap;
+    }
+
+    public void setActionButtonManager(ActionButtonManager actionButtonManager) {
         this.actionButtonManager = actionButtonManager;
     }
 

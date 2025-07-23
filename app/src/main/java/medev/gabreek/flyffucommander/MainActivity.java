@@ -137,8 +137,10 @@ public class MainActivity extends AppCompatActivity implements FabMovementHandle
         screenHeight = dm.heightPixels;
 
         displayUtils = new DisplayUtils(this);
-        actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, keyDispatcher, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
-        keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap, actionButtonManager);
+        keyDispatcher = new KeyDispatcher(this, webViews, clientActionButtonsData, fabViewToActionDataMap);
+        actionButtonManager = new ActionButtonManager(this, rootContainer, clientActionButtonsData, fabViewToActionDataMap, appTinyDB, displayUtils, areActionButtonsPositionsFixed, this::getClientDisplayName, this::getWebViews);
+        actionButtonManager.setKeyDispatcher(keyDispatcher);
+        keyDispatcher.setActionButtonManager(actionButtonManager);
         clientManager = new ClientManager(this, webViews, layouts, appTinyDB, configuredClientIds, linearLayout, floatingActionButton, actionButtonManager, this::createWebViewer, id -> {
             switch (id) {
                 case Constants.WIKI_CLIENT_ID:

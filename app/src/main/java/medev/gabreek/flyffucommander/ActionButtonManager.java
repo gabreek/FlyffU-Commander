@@ -29,7 +29,7 @@ public class ActionButtonManager {
     private final Map<View, ActionButtonData> fabViewToActionDataMap;
     private final TinyDB appTinyDB;
     private final DisplayUtils displayUtils;
-    private final KeyDispatcher keyDispatcher;
+    private KeyDispatcher keyDispatcher;
     private boolean areActionButtonsPositionsFixed;
     private final Function<Integer, String> clientDisplayNameProvider;
     private final Supplier<SparseArray<WebView>> webViewsProvider;
@@ -37,7 +37,7 @@ public class ActionButtonManager {
 
     public ActionButtonManager(Context context, FrameLayout rootContainer, Map<Integer, List<ActionButtonData>> clientActionButtonsData,
                                Map<View, ActionButtonData> fabViewToActionDataMap, TinyDB appTinyDB, DisplayUtils displayUtils,
-                               KeyDispatcher keyDispatcher, boolean areActionButtonsPositionsFixed,
+                               boolean areActionButtonsPositionsFixed,
                                Function<Integer, String> clientDisplayNameProvider, Supplier<SparseArray<WebView>> webViewsProvider) {
         this.context = context;
         this.rootContainer = rootContainer;
@@ -45,11 +45,14 @@ public class ActionButtonManager {
         this.fabViewToActionDataMap = fabViewToActionDataMap;
         this.appTinyDB = appTinyDB;
         this.displayUtils = displayUtils;
-        this.keyDispatcher = keyDispatcher;
         this.areActionButtonsPositionsFixed = areActionButtonsPositionsFixed;
         this.clientDisplayNameProvider = clientDisplayNameProvider;
         this.webViewsProvider = webViewsProvider;
         this.fabMovementHandler = new FabMovementHandler(((MainActivity) context).getScreenWidth(), ((MainActivity) context).getScreenHeight());
+    }
+
+    public void setKeyDispatcher(KeyDispatcher keyDispatcher) {
+        this.keyDispatcher = keyDispatcher;
     }
 
     public void setActionButtonsPositionsFixed(boolean fixed) {
